@@ -6,12 +6,31 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "jobs:process": "curl -X POST http://localhost:3000/api/jobs/process",
+    "jobs:monitor": "powershell -NoProfile -Command \"Invoke-RestMethod -Method Post -Uri 'http://localhost:3000/api/jobs/process' | ConvertTo-Json -Depth 20\""
   },
   "dependencies": {
+    "@aws-sdk/client-cognito-identity-provider": "^3.1014.0",
+    "@aws-sdk/client-dynamodb": "^3.1014.0",
+    "@aws-sdk/client-rds": "^3.1014.0",
+    "@aws-sdk/client-sqs": "^3.1014.0",
+    "@azure/app-configuration": "^1.11.0",
+    "@azure/data-tables": "^13.3.2",
+    "@azure/identity": "^4.13.1",
+    "@azure/keyvault-secrets": "^4.10.0",
+    "@azure/service-bus": "^7.9.5",
+    "@azure/storage-blob": "^12.31.0",
+    "aws-sdk": "^2.1693.0",
+    "axios": "^1.13.6",
+    "dotenv": "^17.3.1",
+    "jose": "^6.2.2",
+    "mermaid": "^11.13.0",
     "next": "16.2.1",
+    "next-auth": "^4.24.13",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

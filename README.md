@@ -1,36 +1,55 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Aubox - Onchain Investigation Workbench on Azure
 
-## Getting Started
+Aubox is a manual, investigator-first onchain research web app. It is intentionally not an autonomous agent.
 
-First, run the development server:
+## Current MVP Foundation
+
+- Next.js App Router + TypeScript
+- Tailwind CSS 4
+- Landing cockpit with the five must-have action modules:
+  - Profile Address
+  - Trace Funds
+  - Cluster Entities
+  - Build Timeline
+  - Generate Report
+- Day-1 launch chain badges:
+  - Ethereum
+  - BSC
+  - Base
+  - Arbitrum
+  - Hyperliquid
+
+## Run Locally
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open `http://localhost:3000`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Project Layout
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- `src/app/layout.tsx`: global metadata and font setup
+- `src/app/globals.css`: design tokens, background styling, animation keyframes
+- `src/app/page.tsx`: Aubox hero, chain scope, and primary investigation action cards
 
-## Learn More
+## Architecture Overview
 
-To learn more about Next.js, take a look at the following resources:
+- **Frontend**: Next.js (Vercel or Azure Static Web Apps)
+- **Backend**: Azure Functions or App Service
+- **Auth**: Azure Entra ID B2C (or Entra External ID)
+- **Database**: Azure Database for PostgreSQL
+- **Queue**: Azure Service Bus
+- **Storage**: Azure Blob Storage
+- **Secrets**: Azure Key Vault
+- **Onchain Data**: Provider-agnostic per-chain RPC URLs + Arkham enrichment
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Implementation note: Azure integrations are in `src/lib/azure.ts`.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Next Build Steps
+- Harden Entra auth token verification with Microsoft identity libraries
+- Add API routes for investigation actions (`/api/profile`, `/api/trace`, `/api/cluster`) persistence layer
+- Add persistence for cases/evidence with PostgreSQL
+- Add queue workers for heavy trace and clustering jobs
+- Integrate per-chain RPC providers + Arkham with source fallback logic
