@@ -67,9 +67,9 @@ export default function ResetPasswordForm({ token }: ResetPasswordFormProps) {
   return (
     <form
       onSubmit={handleSubmit}
-      className="mx-auto w-full max-w-sm rounded-2xl border border-[var(--line)] bg-[var(--paper)] p-6"
+      className="w-full"
     >
-      <h3 className="mb-4 text-xl font-bold">Create New Password</h3>
+      <h3 className="mb-4 text-2xl font-semibold text-[#121521]">Create new password</h3>
 
       <div className="mb-4 flex flex-col gap-3">
         <div>
@@ -81,20 +81,20 @@ export default function ResetPasswordForm({ token }: ResetPasswordFormProps) {
               onChange={(e) => setPassword(e.target.value)}
               required
               minLength={8}
-              className="flex-1 rounded-lg border border-[var(--line)] bg-white px-3 py-2"
+              className="flex-1 rounded-md border border-[#d9dde5] bg-[#f5f7fa] px-3 py-2.5 text-sm text-[#111827] outline-none focus:border-[#a5afc0]"
             />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="rounded-lg border border-[var(--line)] bg-white px-3 py-2 text-[var(--muted)] hover:bg-[var(--paper)]"
+              className="rounded-md border border-[#d9dde5] bg-white px-3 py-2 text-[#6b7280] hover:bg-[#f3f4f6]"
               title={showPassword ? "Hide password" : "Show password"}
             >
-              {showPassword ? "👁️‍🗨️" : "👁️"}
+              {showPassword ? "Hide" : "Show"}
             </button>
           </div>
           {password && (
-            <div className="mt-2 rounded-lg border border-[var(--line)] bg-[var(--paper)] p-3">
-              <p className="text-xs font-semibold text-[var(--muted)]">Password requirements:</p>
+            <div className="mt-2 rounded-md border border-[#e5e7eb] bg-[#f8fafc] p-3">
+              <p className="text-xs font-semibold text-[#6b7280]">Password requirements:</p>
               <div className="mt-2 space-y-1">
                 <p className={`text-xs ${passwordRequirements.minLength ? "text-green-600" : "text-red-600"}`}>
                   {passwordRequirements.minLength ? "✓" : "✗"} Minimum 8 characters
@@ -112,7 +112,7 @@ export default function ResetPasswordForm({ token }: ResetPasswordFormProps) {
             onChange={(e) => setConfirmPassword(e.target.value)}
             required
             minLength={8}
-            className="w-full rounded-lg border border-[var(--line)] bg-white px-3 py-2"
+            className="w-full rounded-md border border-[#d9dde5] bg-[#f5f7fa] px-3 py-2.5 text-sm text-[#111827] outline-none focus:border-[#a5afc0]"
           />
           {confirmPassword && (
             <p className={`mt-1 text-xs font-semibold ${passwordMatch ? "text-green-600" : "text-red-600"}`}>
@@ -125,18 +125,18 @@ export default function ResetPasswordForm({ token }: ResetPasswordFormProps) {
       <button
         type="submit"
         disabled={loading || !password || !passwordMatch || !passwordRequirements.minLength}
-        className="w-full rounded-lg bg-[var(--accent)] px-4 py-2 font-semibold text-white hover:bg-[var(--accent-strong)] disabled:opacity-50"
+        className="w-full rounded-full bg-[var(--accent)] px-4 py-2.5 font-semibold text-white hover:bg-[var(--accent-strong)] disabled:opacity-50"
       >
         {loading ? "Resetting..." : "Reset Password"}
       </button>
 
       {message && (
-        <div className="mt-3 rounded-lg border border-green-300 bg-green-50 p-2 text-sm text-green-700">
+        <div className="mt-3 rounded-md border border-green-300 bg-green-50 p-2 text-sm text-green-700">
           {message}
           <p className="mt-1 text-xs">Redirecting to dashboard...</p>
         </div>
       )}
-      {error && <div className="mt-3 rounded-lg border border-red-300 bg-red-50 p-2 text-sm text-red-700">{error}</div>}
+      {error && <div className="mt-3 rounded-md border border-red-300 bg-red-50 p-2 text-sm text-red-700">{error}</div>}
     </form>
   );
 }

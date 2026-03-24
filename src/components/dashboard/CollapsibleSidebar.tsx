@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { SidebarStateProvider } from "@/components/dashboard/sidebar-state";
+import BrandMark from "@/components/brand/BrandMark";
 
 type CollapsibleSidebarProps = {
   children: React.ReactNode;
@@ -24,8 +25,8 @@ export default function CollapsibleSidebar({ children }: CollapsibleSidebarProps
           <div className="pointer-events-none absolute right-0 top-0 z-10 h-full w-px bg-[var(--line)]" />
           <div className="pointer-events-none absolute -right-[10px] top-0 h-7 w-7 rounded-tr-2xl bg-[var(--paper)]" />
 
-          <div className={`font-mono uppercase tracking-[0.18em] text-[var(--muted)] ${collapsed ? "px-1 text-[10px]" : "text-xs"}`}>
-            Aubox
+          <div className={collapsed ? "px-1" : ""}>
+            <BrandMark href="/dashboard" compact={collapsed} showText={!collapsed} />
           </div>
 
           <div className={`${collapsed ? "mt-3" : "mt-4"} min-h-0 flex-1`}>{content}</div>

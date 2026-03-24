@@ -7,7 +7,7 @@ const artifactSchema = z.object({
   tag: z.string().trim().min(1).max(64).optional(),
   value: z.string().trim().min(1).max(512),
   kind: z.enum(["address", "entity", "hashtag", "ticker", "username", "query", "note"]),
-  sourceFeature: z.enum(["trace", "cluster", "social", "profile", "timeline", "report", "manual"]),
+  sourceFeature: z.enum(["trace", "cluster", "social", "profile", "timeline", "report", "manual", "token"]),
   aliases: z.array(z.string().trim().min(1).max(120)).max(30).optional(),
   metadata: z.record(z.string(), z.union([z.string(), z.number()])).optional(),
 });

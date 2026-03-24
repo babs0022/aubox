@@ -196,7 +196,7 @@ export interface CaseEventRecord {
   id: string;
   caseId: string;
   userId: string;
-  feature: "profile" | "trace" | "cluster" | "timeline" | "report" | "social";
+  feature: "profile" | "trace" | "cluster" | "timeline" | "report" | "social" | "token";
   title: string;
   narrative: string;
   metrics?: Record<string, number | string>;
@@ -212,7 +212,7 @@ export interface CaseArtifactRecord {
   tag: string;
   value: string;
   kind: "address" | "entity" | "hashtag" | "ticker" | "username" | "query" | "note";
-  sourceFeature: "trace" | "cluster" | "social" | "profile" | "timeline" | "report" | "manual";
+  sourceFeature: "trace" | "cluster" | "social" | "profile" | "timeline" | "report" | "manual" | "token";
   aliases?: string[];
   metadata?: Record<string, string | number>;
   createdAt: string;

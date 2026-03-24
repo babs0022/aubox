@@ -42,8 +42,8 @@ export default function ForgotPasswordForm() {
 
   if (resetToken) {
     return (
-      <div className="mx-auto w-full max-w-sm rounded-2xl border border-[var(--line)] bg-[var(--paper)] p-6">
-        <div className="rounded-lg border border-green-300 bg-green-50 p-4">
+      <div className="w-full rounded-2xl border border-[#e5e7eb] bg-white p-6 shadow-[0_6px_22px_rgba(0,0,0,0.05)]">
+        <div className="rounded-md border border-green-300 bg-green-50 p-4">
           <p className="text-sm font-semibold text-green-700">Reset link generated!</p>
           <p className="mt-2 text-xs text-green-600">
             In development mode, use this token:
@@ -62,31 +62,31 @@ export default function ForgotPasswordForm() {
   return (
     <form
       onSubmit={handleSubmit}
-      className="mx-auto w-full max-w-sm rounded-2xl border border-[var(--line)] bg-[var(--paper)] p-6"
+      className="w-full"
     >
-      <h3 className="mb-4 text-xl font-bold">Request Password Reset</h3>
+      <h3 className="mb-4 text-2xl font-semibold text-[#121521]">Request password reset</h3>
 
       <div className="mb-4">
         <input
           type="email"
-          placeholder="your@email.com"
+          placeholder="Username or email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
-          className="w-full rounded-lg border border-[var(--line)] bg-white px-3 py-2"
+          className="w-full rounded-md border border-[#d9dde5] bg-[#f5f7fa] px-3 py-2.5 text-sm text-[#111827] outline-none focus:border-[#a5afc0]"
         />
       </div>
 
       <button
         type="submit"
         disabled={loading || !email}
-        className="w-full rounded-lg bg-[var(--accent)] px-4 py-2 font-semibold text-white hover:bg-[var(--accent-strong)] disabled:opacity-50"
+        className="w-full rounded-full bg-[var(--accent)] px-4 py-2.5 font-semibold text-white hover:bg-[var(--accent-strong)] disabled:opacity-50"
       >
         {loading ? "Sending..." : "Send Reset Link"}
       </button>
 
-      {message && <div className="mt-3 rounded-lg border border-green-300 bg-green-50 p-2 text-sm text-green-700">{message}</div>}
-      {error && <div className="mt-3 rounded-lg border border-red-300 bg-red-50 p-2 text-sm text-red-700">{error}</div>}
+      {message && <div className="mt-3 rounded-md border border-green-300 bg-green-50 p-2 text-sm text-green-700">{message}</div>}
+      {error && <div className="mt-3 rounded-md border border-red-300 bg-red-50 p-2 text-sm text-red-700">{error}</div>}
     </form>
   );
 }

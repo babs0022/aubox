@@ -44,6 +44,8 @@ const getRpcUrl = (chain: string): string | null => {
 const ARKHAM_BASE_URL = process.env.ARKHAM_API_URL || "https://api.arkm.com";
 const NANSEN_BASE_URL = process.env.NANSEN_API_URL || "https://api.nansen.ai/api/v1";
 const DESEARCH_BASE_URL = process.env.DESEARCH_API_URL || "https://api.desearch.ai";
+const DEFILLAMA_BASE_URL = process.env.DEFILLAMA_API_URL || "https://api.llama.fi";
+const DUNE_BASE_URL = process.env.DUNE_API_URL || "https://api.dune.com/api/v1";
 const DESEARCH_SEARCH_PATH = process.env.DESEARCH_SEARCH_PATH || "/twitter";
 const DESEARCH_SEARCH_FALLBACK_PATHS = (
   process.env.DESEARCH_SEARCH_FALLBACK_PATHS || "/twitter,/desearch/ai/search/links/twitter"
@@ -1405,6 +1407,51 @@ export interface TokenRiskScore {
   createdAt?: string;
 }
 
+export interface TokenMovementIntel {
+  chain: string;
+  tokenAddress: string;
+  sampledFromBlock: string;
+  sampledToBlock: string;
+  transferEventCount: number;
+  estimatedHolderCount: number;
+  uniqueSenders: number;
+  uniqueReceivers: number;
+  totalTransferredRaw: string;
+  market: {
+    liquidityUsd: number | null;
+    volume24hUsd: number | null;
+    riskLevel: TokenRiskLevel | "unknown";
+    riskScore: number | null;
+  };
+  walletRelation?: {
+    wallet: string;
+    inboundTransfers: number;
+    outboundTransfers: number;
+    netDirection: "inflow" | "outflow" | "neutral";
+    inboundRaw: string;
+    outboundRaw: string;
+    netRaw: string;
+  };
+  topCounterparties: Array<{
+    address: string;
+    interactions: number;
+  }>;
+}
+
+export type DefiLlamaBridgeProtocol = {
+  id: string;
+  name: string;
+  displayName: string;
+  chains: string[];
+  url: string | null;
+};
+
+export type DuneBridgeContext = {
+  queryId: number;
+  matchedRows: number;
+  latestRecord: Record<string, unknown> | null;
+};
+
 // Dexscreener token enrichment with risk scoring
 export const dexscreenerTokenRisk = async (tokenAddress: string, chain: string): Promise<TokenRiskScore | null> => {
   try {
@@ -1524,6 +1571,227 @@ export const coingeckoPriceAtTime = async (tokenId: string, unixTimestamp: numbe
   }
 };
 
+// CoinGecko contract lookup by chain + token contract
+export const coingeckoTokenPriceByContract = async (
+  chain: string,
+  contractAddress: string
+): Promise<number | null> => {
+  const platformMap: Record<string, string> = {
+    ethereum: "ethereum",
+    bsc: "binance-smart-chain",
+    base: "base",
+    arbitrum: "arbitrum-one",
+    hyperliquid: "hyperliquid",
+  };
+
+  const platform = platformMap[chain];
+  if (!platform || !/^0x[a-fA-F0-9]{40}$/.test(contractAddress)) {
+    return null;
+  }
+
+  try {
+    const baseUrl = process.env.COINGECKO_API_URL || "https://api.coingecko.com/api/v3";
+    const response = await axios.get(`${baseUrl}/simple/token_price/${platform}`, {
+      params: {
+        contract_addresses: contractAddress,
+        vs_currencies: "usd",
+      },
+      timeout: 5000,
+    });
+
+    const data = response.data as Record<string, unknown>;
+    const key = contractAddress.toLowerCase();
+    const tokenRow = data[key];
+    if (!tokenRow || typeof tokenRow !== "object" || Array.isArray(tokenRow)) {
+      return null;
+    }
+
+    const usd = (tokenRow as Record<string, unknown>).usd;
+    return typeof usd === "number" && Number.isFinite(usd) ? usd : null;
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      const status = error.response?.status;
+      if (status === 429) console.warn("CoinGecko contract price lookup rate limited");
+    }
+    return null;
+  }
+};
+
+const normalizeDefiLlamaProtocol = (row: Record<string, unknown>): DefiLlamaBridgeProtocol | null => {
+  const id = typeof row.id === "string" ? row.id : "";
+  const name = typeof row.name === "string" ? row.name : "";
+  const displayName = typeof row.displayName === "string" ? row.displayName : name;
+  const url = typeof row.url === "string" ? row.url : null;
+  const chainCandidates = [row.chains, row.chainTvls, row.chain];
+
+  const chains = new Set<string>();
+  for (const candidate of chainCandidates) {
+    if (Array.isArray(candidate)) {
+      for (const value of candidate) {
+        if (typeof value === "string" && value.trim().length > 0) {
+          chains.add(value.trim().toLowerCase());
+        }
+      }
+    } else if (candidate && typeof candidate === "object" && !Array.isArray(candidate)) {
+      for (const key of Object.keys(candidate as Record<string, unknown>)) {
+        if (key.trim().length > 0) {
+          chains.add(key.trim().toLowerCase());
+        }
+      }
+    } else if (typeof candidate === "string" && candidate.trim().length > 0) {
+      chains.add(candidate.trim().toLowerCase());
+    }
+  }
+
+  if (!name && !displayName) {
+    return null;
+  }
+
+  return {
+    id: id || displayName || name,
+    name: name || displayName,
+    displayName: displayName || name,
+    chains: Array.from(chains),
+    url,
+  };
+};
+
+export const defillamaBridgeProtocols = async (): Promise<DefiLlamaBridgeProtocol[]> => {
+  try {
+    const response = await axios.get(`${DEFILLAMA_BASE_URL}/bridges`, {
+      timeout: 8000,
+    });
+
+    const data = response.data as Record<string, unknown>;
+    const listCandidates = [data.protocols, data.bridges, data.data, response.data];
+    for (const candidate of listCandidates) {
+      if (!Array.isArray(candidate)) {
+        continue;
+      }
+
+      const normalized = candidate
+        .filter((item): item is Record<string, unknown> => Boolean(item && typeof item === "object" && !Array.isArray(item)))
+        .map(normalizeDefiLlamaProtocol)
+        .filter((item): item is DefiLlamaBridgeProtocol => Boolean(item));
+
+      if (normalized.length > 0) {
+        return normalized;
+      }
+    }
+
+    return [];
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      const status = error.response?.status;
+      if (status === 429) {
+        console.warn("DefiLlama bridge endpoint rate limited");
+      }
+    }
+    return [];
+  }
+};
+
+export const defillamaFindBridgeProtocol = async (
+  protocolHint: string,
+  chain?: string
+): Promise<DefiLlamaBridgeProtocol | null> => {
+  const cleanedHint = protocolHint.trim().toLowerCase();
+  if (!cleanedHint) {
+    return null;
+  }
+
+  const protocols = await defillamaBridgeProtocols();
+  if (protocols.length === 0) {
+    return null;
+  }
+
+  const chainNeedle = (chain || "").trim().toLowerCase();
+
+  const directMatch = protocols.find((item) => {
+    const name = item.name.toLowerCase();
+    const displayName = item.displayName.toLowerCase();
+    const textMatch =
+      cleanedHint.includes(name) ||
+      name.includes(cleanedHint) ||
+      cleanedHint.includes(displayName) ||
+      displayName.includes(cleanedHint);
+
+    if (!textMatch) {
+      return false;
+    }
+
+    if (!chainNeedle) {
+      return true;
+    }
+
+    return item.chains.length === 0 || item.chains.includes(chainNeedle);
+  });
+
+  return directMatch || null;
+};
+
+export const duneBridgeContextForAddress = async (
+  address: string,
+  chain: string
+): Promise<DuneBridgeContext | null> => {
+  const apiKey = process.env.DUNE_API_KEY;
+  const queryIdRaw = process.env.DUNE_BRIDGE_QUERY_ID;
+  if (!apiKey || !queryIdRaw) {
+    return null;
+  }
+
+  const queryId = Number.parseInt(queryIdRaw, 10);
+  if (!Number.isFinite(queryId)) {
+    return null;
+  }
+
+  try {
+    const response = await axios.get(`${DUNE_BASE_URL}/query/${queryId}/results`, {
+      params: {
+        filters: JSON.stringify({
+          address: address.toLowerCase(),
+          chain: chain.toLowerCase(),
+        }),
+      },
+      headers: {
+        "X-Dune-API-Key": apiKey,
+      },
+      timeout: 12000,
+    });
+
+    const data = response.data as Record<string, unknown>;
+    const result = data.result;
+    if (!result || typeof result !== "object" || Array.isArray(result)) {
+      return null;
+    }
+
+    const rowsRaw = (result as Record<string, unknown>).rows;
+    if (!Array.isArray(rowsRaw)) {
+      return null;
+    }
+
+    const rows = rowsRaw.filter(
+      (item): item is Record<string, unknown> => Boolean(item && typeof item === "object" && !Array.isArray(item))
+    );
+
+    return {
+      queryId,
+      matchedRows: rows.length,
+      latestRecord: rows[0] || null,
+    };
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      const status = error.response?.status;
+      if (status === 429) {
+        console.warn("Dune query rate limited");
+      } else if (status === 401 || status === 403) {
+        console.warn("Dune auth failed; verify DUNE_API_KEY");
+      }
+    }
+    return null;
+  }
+};
+
 // CoinGecko price/history (legacy)
 export const coingeckoPriceHistory = async (tokenId: string, days: number = 30) => {
   try {
@@ -1625,4 +1893,154 @@ export const buildWalletProfile = async (address: string, chain: string) => {
       rpc: !!rpcData,
     },
   };
+};
+
+const TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55aeb";
+
+const topicToAddress = (topic: string): string => {
+  if (typeof topic !== "string" || !topic.startsWith("0x") || topic.length < 42) {
+    return "";
+  }
+  return `0x${topic.slice(-40)}`.toLowerCase();
+};
+
+const toHexBlock = (value: number): string => {
+  return `0x${Math.max(0, Math.floor(value)).toString(16)}`;
+};
+
+const toBigIntSafe = (value: unknown): bigint => {
+  if (typeof value === "string" && value.startsWith("0x")) {
+    try {
+      return BigInt(value);
+    } catch {
+      return BigInt(0);
+    }
+  }
+  if (typeof value === "number" && Number.isFinite(value) && value >= 0) {
+    return BigInt(Math.floor(value));
+  }
+  return BigInt(0);
+};
+
+export const analyzeTokenMovement = async (
+  tokenAddress: string,
+  chain: string,
+  walletAddress?: string,
+  lookbackBlocks: number = 4000
+): Promise<TokenMovementIntel | null> => {
+  const normalizedToken = tokenAddress.trim().toLowerCase();
+  if (!/^0x[a-fA-F0-9]{40}$/.test(normalizedToken)) {
+    return null;
+  }
+
+  const normalizedWallet = walletAddress && /^0x[a-fA-F0-9]{40}$/.test(walletAddress)
+    ? walletAddress.toLowerCase()
+    : null;
+
+  const latestBlockHex = await rpcCall(chain, "eth_blockNumber", []);
+  if (typeof latestBlockHex !== "string") {
+    return null;
+  }
+
+  const latestBlock = Number.parseInt(latestBlockHex, 16);
+  if (!Number.isFinite(latestBlock)) {
+    return null;
+  }
+
+  const fromBlock = Math.max(0, latestBlock - Math.max(500, Math.min(20000, lookbackBlocks)));
+
+  const logs = await rpcCall(chain, "eth_getLogs", [
+    {
+      address: normalizedToken,
+      fromBlock: toHexBlock(fromBlock),
+      toBlock: toHexBlock(latestBlock),
+      topics: [TRANSFER_TOPIC],
+    },
+  ]);
+
+  const rows = Array.isArray(logs)
+    ? logs.filter((item): item is Record<string, unknown> => Boolean(item && typeof item === "object"))
+    : [];
+
+  const holders = new Set<string>();
+  const senders = new Set<string>();
+  const receivers = new Set<string>();
+  const counterparties = new Map<string, number>();
+  let totalTransferredRaw = BigInt(0);
+
+  let inboundCount = 0;
+  let outboundCount = 0;
+  let inboundRaw = BigInt(0);
+  let outboundRaw = BigInt(0);
+
+  for (const row of rows) {
+    const topics = Array.isArray(row.topics) ? row.topics : [];
+    const from = topics.length > 1 && typeof topics[1] === "string" ? topicToAddress(topics[1]) : "";
+    const to = topics.length > 2 && typeof topics[2] === "string" ? topicToAddress(topics[2]) : "";
+    const valueRaw = toBigIntSafe(row.data);
+
+    if (from && from !== "0x0000000000000000000000000000000000000000") {
+      senders.add(from);
+      holders.add(from);
+      counterparties.set(from, (counterparties.get(from) || 0) + 1);
+    }
+    if (to && to !== "0x0000000000000000000000000000000000000000") {
+      receivers.add(to);
+      holders.add(to);
+      counterparties.set(to, (counterparties.get(to) || 0) + 1);
+    }
+
+    totalTransferredRaw += valueRaw;
+
+    if (normalizedWallet) {
+      if (to === normalizedWallet) {
+        inboundCount += 1;
+        inboundRaw += valueRaw;
+      }
+      if (from === normalizedWallet) {
+        outboundCount += 1;
+        outboundRaw += valueRaw;
+      }
+    }
+  }
+
+  const tokenRisk = await dexscreenerTokenRisk(normalizedToken, chain);
+  const topCounterparties = Array.from(counterparties.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10)
+    .map(([address, interactions]) => ({ address, interactions }));
+
+  const intel: TokenMovementIntel = {
+    chain,
+    tokenAddress: normalizedToken,
+    sampledFromBlock: toHexBlock(fromBlock),
+    sampledToBlock: toHexBlock(latestBlock),
+    transferEventCount: rows.length,
+    estimatedHolderCount: holders.size,
+    uniqueSenders: senders.size,
+    uniqueReceivers: receivers.size,
+    totalTransferredRaw: totalTransferredRaw.toString(),
+    market: {
+      liquidityUsd: tokenRisk?.liquidity ?? null,
+      volume24hUsd: tokenRisk?.volume24h ?? null,
+      riskLevel: tokenRisk?.riskLevel || "unknown",
+      riskScore: typeof tokenRisk?.score === "number" ? tokenRisk.score : null,
+    },
+    topCounterparties,
+  };
+
+  if (normalizedWallet) {
+    const netRaw = inboundRaw - outboundRaw;
+    intel.walletRelation = {
+      wallet: normalizedWallet,
+      inboundTransfers: inboundCount,
+      outboundTransfers: outboundCount,
+      netDirection: netRaw > BigInt(0) ? "inflow" : netRaw < BigInt(0) ? "outflow" : "neutral",
+      inboundRaw: inboundRaw.toString(),
+      outboundRaw: outboundRaw.toString(),
+      netRaw: netRaw.toString(),
+    };
+  }
+
+  return intel;
 };

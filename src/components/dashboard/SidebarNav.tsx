@@ -82,6 +82,15 @@ const SocialIcon = ({ className }: IconProps) => (
   </svg>
 );
 
+const TokenIcon = ({ className }: IconProps) => (
+  <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M9 9h6" />
+    <path d="M9 15h6" />
+    <path d="M12 7v10" />
+  </svg>
+);
+
 const ArtifactIcon = ({ className }: IconProps) => (
   <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
     <path d="M20 7l-5-5H5a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2z" />
@@ -117,6 +126,7 @@ const toolItems: NavItem[] = [
   { href: "/profile-address", label: "Profile Address", icon: WalletIcon, caseScoped: true },
   { href: "/trace-funds", label: "Trace Funds", icon: TraceIcon, caseScoped: true },
   { href: "/cluster-entities", label: "Cluster Entities", icon: ClusterIcon, caseScoped: true },
+  { href: "/token-movement", label: "Token Movement", icon: TokenIcon, caseScoped: true },
   { href: "/social-investigation", label: "Social Investigation", icon: SocialIcon, caseScoped: true },
   { href: "/artifacts", label: "Artifact Manager", icon: ArtifactIcon, caseScoped: true },
   { href: "/build-timeline", label: "Build Timeline", icon: TimelineIcon, caseScoped: true },

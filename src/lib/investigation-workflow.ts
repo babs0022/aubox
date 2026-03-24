@@ -1,4 +1,12 @@
-import { arkhamAddressCounterparties, arkhamAddressTransfers, arkhamClusterLookup } from "@/lib/datasources";
+import {
+  arkhamAddressCounterparties,
+  arkhamAddressTransfers,
+  arkhamClusterLookup,
+  coingeckoTokenPriceByContract,
+  defillamaFindBridgeProtocol,
+  dexscreenerTokenRisk,
+  duneBridgeContextForAddress,
+} from "@/lib/datasources";
 
 const MAX_HOPS = 700;
 
@@ -25,6 +33,123 @@ type TraceRecord = {
   dex?: string;
   exchange?: string;
   usdValue?: number;
+};
+
+type BridgeSignal = {
+  txHash: string;
+  from: string;
+  to: string;
+  sourceChain: string;
+  inferredDestinationChain: string | null;
+  protocolHint: string;
+  bridgeProtocol: string | null;
+  confidence: number;
+  tokenSymbol: string;
+  tokenAddress: string;
+  valueUsd: number | null;
+  riskLevel: "low" | "medium" | "high" | "critical" | "unknown";
+  riskScore: number | null;
+  coingeckoPriceUsd: number | null;
+};
+
+const BRIDGE_PROTOCOL_HINTS: Array<{ pattern: RegExp; label: string }> = [
+  { pattern: /stargate/i, label: "Stargate" },
+  { pattern: /layerzero/i, label: "LayerZero" },
+  { pattern: /wormhole/i, label: "Wormhole" },
+  { pattern: /across/i, label: "Across" },
+  { pattern: /celer|cbridge/i, label: "Celer" },
+  { pattern: /hop\s*protocol|\bhop\b/i, label: "Hop Protocol" },
+  { pattern: /synapse/i, label: "Synapse" },
+  { pattern: /multichain|anyswap/i, label: "Multichain" },
+  { pattern: /orbiter/i, label: "Orbiter" },
+  { pattern: /bridge/i, label: "Bridge" },
+];
+
+const CHAIN_HINTS = ["ethereum", "bsc", "base", "arbitrum", "optimism", "polygon", "avalanche", "solana"];
+
+const inferDestinationChain = (text: string, sourceChain: string): string | null => {
+  const lowered = text.toLowerCase();
+  for (const chain of CHAIN_HINTS) {
+    if (chain === sourceChain.toLowerCase()) {
+      continue;
+    }
+    if (lowered.includes(chain)) {
+      return chain;
+    }
+  }
+  return null;
+};
+
+const inferBridgeSignals = (traces: TraceRecord[], sourceChain: string): BridgeSignal[] => {
+  const signals: BridgeSignal[] = [];
+
+  for (const trace of traces.slice(0, 120)) {
+    const hintText = [
+      trace.protocol || "",
+      trace.dex || "",
+      trace.exchange || "",
+      trace.method || "",
+      trace.functionSignature || "",
+      trace.toLabel || "",
+      trace.fromLabel || "",
+      trace.tokenSymbol || "",
+    ]
+      .join(" ")
+      .toLowerCase();
+
+    const matched = BRIDGE_PROTOCOL_HINTS.find((item) => item.pattern.test(hintText));
+    if (!matched) {
+      continue;
+    }
+
+    const destinationChain = inferDestinationChain(hintText, sourceChain);
+    const protocolHint =
+      trace.protocol ||
+      trace.dex ||
+      trace.exchange ||
+      trace.method ||
+      trace.functionSignature ||
+      matched.label;
+
+    let confidence = 58;
+    if (trace.protocol || trace.dex || trace.exchange) {
+      confidence += 12;
+    }
+    if (trace.usdValue && trace.usdValue >= 100000) {
+      confidence += 10;
+    }
+    if (destinationChain) {
+      confidence += 8;
+    }
+
+    signals.push({
+      txHash: trace.transactionHash,
+      from: trace.action.from,
+      to: trace.action.to,
+      sourceChain: sourceChain.toLowerCase(),
+      inferredDestinationChain: destinationChain,
+      protocolHint,
+      bridgeProtocol: matched.label,
+      confidence: Math.max(1, Math.min(100, Math.round(confidence))),
+      tokenSymbol: trace.tokenSymbol || "",
+      tokenAddress: trace.tokenAddress || "",
+      valueUsd: typeof trace.usdValue === "number" && Number.isFinite(trace.usdValue) ? trace.usdValue : null,
+      riskLevel: "unknown",
+      riskScore: null,
+      coingeckoPriceUsd: null,
+    });
+  }
+
+  const deduped = new Map<string, BridgeSignal>();
+  for (const signal of signals) {
+    const key = `${signal.txHash}:${signal.from}:${signal.to}`;
+    const existing = deduped.get(key);
+    if (!existing || signal.confidence > existing.confidence) {
+      deduped.set(key, signal);
+    }
+  }
+
+  return Array.from(deduped.values()).sort((a, b) => b.confidence - a.confidence).slice(0, 8);
 };
 
 const normalizeAddress = (value: string): string => value.trim().toLowerCase();
@@ -236,9 +361,65 @@ export const executeTraceWorkflow = async (
     timeLast,
   };
 
+  const bridgeSignals = inferBridgeSignals(traces, chain);
+  const enrichedBridgeSignals: BridgeSignal[] = [];
+
+  const duneContextPromise = duneBridgeContextForAddress(sourceAddress, chain);
+
+  for (const signal of bridgeSignals) {
+    const nextSignal: BridgeSignal = { ...signal };
+
+    const defillamaMatch = await defillamaFindBridgeProtocol(signal.protocolHint, chain);
+    if (defillamaMatch?.displayName) {
+      nextSignal.bridgeProtocol = defillamaMatch.displayName;
+      nextSignal.confidence = Math.min(100, nextSignal.confidence + 10);
+    }
+
+    if (/^0x[a-fA-F0-9]{40}$/.test(signal.tokenAddress)) {
+      const [tokenRisk, tokenPrice] = await Promise.all([
+        dexscreenerTokenRisk(signal.tokenAddress, chain),
+        coingeckoTokenPriceByContract(chain, signal.tokenAddress),
+      ]);
+
+      if (tokenRisk) {
+        nextSignal.riskLevel = tokenRisk.riskLevel;
+        nextSignal.riskScore = tokenRisk.score;
+      }
+
+      if (typeof tokenPrice === "number" && Number.isFinite(tokenPrice)) {
+        nextSignal.coingeckoPriceUsd = tokenPrice;
+      }
+    }
+
+    enrichedBridgeSignals.push(nextSignal);
+  }
+
+  const duneContext = await duneContextPromise;
+
+  const crossChain = {
+    bridgeSignalsCount: enrichedBridgeSignals.length,
+    highConfidenceSignals: enrichedBridgeSignals.filter((item) => item.confidence >= 70).length,
+    inferredDestinationChains: Array.from(
+      new Set(enrichedBridgeSignals.map((item) => item.inferredDestinationChain).filter((item): item is string => Boolean(item)))
+    ),
+    bridgeSignals: enrichedBridgeSignals,
+    providerCoverage: {
+      defillamaMatched: enrichedBridgeSignals.filter((item) => item.bridgeProtocol && item.bridgeProtocol !== "Bridge").length,
+      dexscreenerRiskResolved: enrichedBridgeSignals.filter((item) => item.riskScore !== null).length,
+      coingeckoPriceResolved: enrichedBridgeSignals.filter((item) => item.coingeckoPriceUsd !== null).length,
+      duneRowsMatched: duneContext?.matchedRows || 0,
+    },
+    duneContext,
+  };
+
+  const enrichedSummary = {
+    ...summary,
+    crossChain,
+  };
+
   return {
     success: true,
-    trace: { traces, summary },
+    trace: { traces, summary: enrichedSummary },
     message: "Trace completed using Arkham transfers endpoint.",
   };
 };

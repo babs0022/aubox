@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
 const eventSchema = z.object({
-  feature: z.enum(["profile", "trace", "cluster", "timeline", "report", "social"]),
+  feature: z.enum(["profile", "trace", "cluster", "timeline", "report", "social", "token"]),
   title: z.string().trim().min(3).max(140),
   narrative: z.string().trim().min(8).max(6000),
   metrics: z.record(z.string(), z.union([z.string(), z.number()])).optional(),

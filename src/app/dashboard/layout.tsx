@@ -24,7 +24,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="border-b border-[var(--line)] bg-[var(--paper)] px-4 py-4 sm:px-6">
           <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-            <HeaderCaseSwitcher />
+            <div className="flex items-start gap-4">
+              <HeaderCaseSwitcher />
+            </div>
             <div className="flex items-center gap-2">
               <Link
                 href="/dashboard/profile"

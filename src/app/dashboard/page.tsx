@@ -13,6 +13,7 @@ export default function DashboardPage() {
           "Profile Address",
           "Trace Funds",
           "Cluster Entities",
+          "Token Movement",
           "Social Investigation",
           "Artifact Manager",
           "Build Timeline",

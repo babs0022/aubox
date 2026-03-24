@@ -17,6 +17,33 @@ type TraceApiResponse = {
   } | null;
 };
 
+type BridgeSignalSummary = {
+  txHash: string;
+  from: string;
+  to: string;
+  sourceChain: string;
+  inferredDestinationChain: string | null;
+  bridgeProtocol: string | null;
+  confidence: number;
+  tokenSymbol: string;
+  valueUsd: number | null;
+  riskLevel: "low" | "medium" | "high" | "critical" | "unknown";
+  riskScore: number | null;
+};
+
+type CrossChainSummary = {
+  bridgeSignalsCount: number;
+  highConfidenceSignals: number;
+  inferredDestinationChains: string[];
+  bridgeSignals: BridgeSignalSummary[];
+  providerCoverage?: {
+    defillamaMatched?: number;
+    dexscreenerRiskResolved?: number;
+    coingeckoPriceResolved?: number;
+    duneRowsMatched?: number;
+  };
+};
+
 type TraceHop = {
   from: string;
   to: string;
@@ -320,6 +347,29 @@ export default function TraceFundsPage() {
   const [artifactLoading, setArtifactLoading] = useState(false);
   const [tokenRisks, setTokenRisks] = useState<Record<string, TokenRiskInfo>>({});
   const traceHops = toTraceHops(result?.trace);
+  const traceSummary = useMemo(() => {
+    if (!result?.trace || typeof result.trace !== "object" || Array.isArray(result.trace)) {
+      return null;
+    }
+    const root = result.trace as Record<string, unknown>;
+    const summary = root.summary;
+    if (!summary || typeof summary !== "object" || Array.isArray(summary)) {
+      return null;
+    }
+    return summary as Record<string, unknown>;
+  }, [result?.trace]);
+
+  const crossChainSummary = useMemo(() => {
+    if (!traceSummary) {
+      return null;
+    }
+    const candidate = traceSummary.crossChain;
+    if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) {
+      return null;
+    }
+    return candidate as CrossChainSummary;
+  }, [traceSummary]);
+
   const uniqueCounterparties = new Set(
     traceHops.flatMap((hop) => [hop.from.toLowerCase(), hop.to.toLowerCase()])
   ).size;
@@ -655,6 +705,23 @@ export default function TraceFundsPage() {
       },
     ];
 
+    const summaryRecord =
+      data.trace && typeof data.trace === "object" && !Array.isArray(data.trace)
+        ? (data.trace as Record<string, unknown>).summary
+        : null;
+    const crossChainRecord =
+      summaryRecord && typeof summaryRecord === "object" && !Array.isArray(summaryRecord)
+        ? (summaryRecord as Record<string, unknown>).crossChain
+        : null;
+    const bridgeSignalCount =
+      crossChainRecord && typeof crossChainRecord === "object" && !Array.isArray(crossChainRecord)
+        ? Number((crossChainRecord as Record<string, unknown>).bridgeSignalsCount || 0)
+        : 0;
+    const destinationChains =
+      crossChainRecord && typeof crossChainRecord === "object" && !Array.isArray(crossChainRecord)
+        ? ((crossChainRecord as Record<string, unknown>).inferredDestinationChains as string[] | undefined) || []
+        : [];
+
     await fetch(`/api/cases/${activeCaseId}/events`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -666,6 +733,8 @@ export default function TraceFundsPage() {
           depth,
           hasJob: data.jobId ? 1 : 0,
           txCountFallback: toTxCount(data.fallback?.txCountHex) ?? -1,
+          bridgeSignalCount,
+          destinationChainCount: destinationChains.length,
         },
         nodes,
         edges,
@@ -1011,6 +1080,57 @@ export default function TraceFundsPage() {
                   </div>
                 </div>
               </div>
+
+              {crossChainSummary && crossChainSummary.bridgeSignalsCount > 0 ? (
+                <div className="rounded-xl border border-[var(--line)] bg-white p-4">
+                  <p className="text-xs uppercase tracking-[0.1em] text-[var(--muted)]">Cross-Chain Signals</p>
+                  <p className="mt-2 text-sm text-[var(--ink)]">
+                    Detected {crossChainSummary.bridgeSignalsCount} potential bridge movement signal(s), including {crossChainSummary.highConfidenceSignals} high-confidence signal(s).
+                  </p>
+
+                  <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                    <div className="rounded-lg border border-[var(--line)] bg-[var(--paper)] p-3">
+                      <p className="text-xs text-[var(--muted)]">Bridge Signals</p>
+                      <p className="mt-1 text-sm font-semibold text-[var(--ink)]">{crossChainSummary.bridgeSignalsCount}</p>
+                    </div>
+                    <div className="rounded-lg border border-[var(--line)] bg-[var(--paper)] p-3">
+                      <p className="text-xs text-[var(--muted)]">High Confidence</p>
+                      <p className="mt-1 text-sm font-semibold text-[var(--ink)]">{crossChainSummary.highConfidenceSignals}</p>
+                    </div>
+                    <div className="rounded-lg border border-[var(--line)] bg-[var(--paper)] p-3">
+                      <p className="text-xs text-[var(--muted)]">Destination Chains</p>
+                      <p className="mt-1 text-sm font-semibold text-[var(--ink)]">
+                        {crossChainSummary.inferredDestinationChains.length > 0
+                          ? crossChainSummary.inferredDestinationChains.join(", ")
+                          : "not inferred"}
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-[var(--line)] bg-[var(--paper)] p-3">
+                      <p className="text-xs text-[var(--muted)]">Dune Matches</p>
+                      <p className="mt-1 text-sm font-semibold text-[var(--ink)]">{crossChainSummary.providerCoverage?.duneRowsMatched || 0}</p>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 space-y-2">
+                    {crossChainSummary.bridgeSignals.slice(0, 5).map((signal, index) => (
+                      <div key={`${signal.txHash}_${index}`} className="rounded-lg border border-[var(--line)] bg-[var(--paper)] p-3">
+                        <p className="text-sm font-semibold text-[var(--ink)]">
+                          {signal.bridgeProtocol || "Bridge pattern"} • confidence {signal.confidence}%
+                        </p>
+                        <p className="mt-1 text-xs text-[var(--muted)]">
+                          {shortenAddress(signal.from)} to {shortenAddress(signal.to)}
+                          {signal.inferredDestinationChain ? ` -> ${signal.inferredDestinationChain}` : ""}
+                          {signal.tokenSymbol ? ` • ${signal.tokenSymbol}` : ""}
+                          {typeof signal.valueUsd === "number" && Number.isFinite(signal.valueUsd)
+                            ? ` • ${formatUsd(signal.valueUsd)}`
+                            : ""}
+                        </p>
+                        <p className="mt-1 font-mono text-[11px] text-[var(--muted)]">{shortenAddress(signal.txHash, 10, 8)}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
 
               {traceHops.length > 0 ? (
                 <div className="rounded-xl border border-[var(--line)] bg-white p-4">

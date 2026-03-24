@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
-import { JetBrains_Mono, Space_Grotesk } from "next/font/google";
+import { Instrument_Sans, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 
-const spaceGrotesk = Space_Grotesk({
-  variable: "--font-space-grotesk",
+const instrumentSans = Instrument_Sans({
+  variable: "--font-instrument-sans",
   subsets: ["latin"],
 });
 
@@ -16,6 +16,14 @@ export const metadata: Metadata = {
   title: "Aubox | Onchain Investigation Workbench",
   description:
     "Manual, investigator-first onchain research cockpit for tracing funds, clustering entities, and exporting evidence.",
+  icons: {
+    icon: [
+      { url: "/aubox%20logo%20dark.png", type: "image/png" },
+      { url: "/favicon.ico" },
+    ],
+    shortcut: "/aubox%20logo%20dark.png",
+    apple: "/aubox%20logo%20dark.png",
+  },
 };
 
 export default function RootLayout({
@@ -26,7 +34,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${spaceGrotesk.variable} ${jetBrainsMono.variable} h-full antialiased`}
+      className={`${instrumentSans.variable} ${jetBrainsMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
