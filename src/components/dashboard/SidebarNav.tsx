@@ -37,6 +37,16 @@ const TraceIcon = ({ className }: IconProps) => (
   </svg>
 );
 
+const FundFlowIcon = ({ className }: IconProps) => (
+  <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <path d="M4 6h5" />
+    <path d="M15 6h5" />
+    <path d="M7 6v12" />
+    <path d="M7 18h10" />
+    <path d="M13 14l4 4-4 4" />
+  </svg>
+);
+
 const ClusterIcon = ({ className }: IconProps) => (
   <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
     <circle cx="6" cy="6" r="2" />
@@ -48,33 +58,6 @@ const ClusterIcon = ({ className }: IconProps) => (
   </svg>
 );
 
-const TimelineIcon = ({ className }: IconProps) => (
-  <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-    <path d="M3 12h18" />
-    <circle cx="7" cy="12" r="2" />
-    <circle cx="12" cy="12" r="2" />
-    <circle cx="17" cy="12" r="2" />
-  </svg>
-);
-
-const GraphIcon = ({ className }: IconProps) => (
-  <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-    <circle cx="5" cy="18" r="2" />
-    <circle cx="12" cy="6" r="2" />
-    <circle cx="19" cy="14" r="2" />
-    <path d="M7 17l4-9" />
-    <path d="M13.5 7.5l4 5" />
-  </svg>
-);
-
-const ReportIcon = ({ className }: IconProps) => (
-  <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-    <path d="M6 2h9l5 5v15a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" />
-    <path d="M14 2v6h6" />
-    <path d="M8 13h8" />
-    <path d="M8 17h6" />
-  </svg>
-);
 
 const SocialIcon = ({ className }: IconProps) => (
   <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -125,19 +108,17 @@ type NavItem = {
 const toolItems: NavItem[] = [
   { href: "/profile-address", label: "Profile Address", icon: WalletIcon, caseScoped: true },
   { href: "/trace-funds", label: "Trace Funds", icon: TraceIcon, caseScoped: true },
+  { href: "/fund-flow", label: "Fund Flow Analysis", icon: FundFlowIcon, caseScoped: true },
   { href: "/cluster-entities", label: "Cluster Entities", icon: ClusterIcon, caseScoped: true },
   { href: "/token-movement", label: "Token Movement", icon: TokenIcon, caseScoped: true },
   { href: "/social-investigation", label: "Social Investigation", icon: SocialIcon, caseScoped: true },
   { href: "/artifacts", label: "Artifact Manager", icon: ArtifactIcon, caseScoped: true },
-  { href: "/build-timeline", label: "Build Timeline", icon: TimelineIcon, caseScoped: true },
-  { href: "/evidence-graph", label: "Evidence Graph", icon: GraphIcon, caseScoped: true },
-  { href: "/generate-report", label: "Generate Report", icon: ReportIcon, caseScoped: true },
 ];
 
 const resourceItems: NavItem[] = [
   { href: "", label: "Overview", icon: OverviewIcon, caseScoped: true },
   { href: "/guide", label: "Guide", icon: GuideIcon },
-  { href: "/dashboard/cases", label: "Cases", icon: CasesIcon },
+  { href: "/cases", label: "Cases", icon: CasesIcon },
 ];
 
 export default function SidebarNav() {
@@ -149,26 +130,22 @@ export default function SidebarNav() {
 
   const resolveHref = (item: NavItem) => {
     if (!item.caseScoped) return item.href;
-    if (!activeCaseId) return "/dashboard/cases";
+    if (!activeCaseId) return "/cases";
     const normalized = item.href.startsWith("/") ? item.href : `/${item.href}`;
-    return `/dashboard/cases/${activeCaseId}${normalized}`;
+    return `/cases/${activeCaseId}${normalized}`;
   };
 
   const navClass = (href: string) => {
     const isActive = pathname === href;
-    return `group flex items-center rounded-lg border text-sm font-semibold transition ${
+    return `dash-nav-link ${isActive ? "dash-nav-link-active" : ""} group transition ${
       collapsed ? "justify-center px-2 py-2" : "gap-2 px-3 py-2"
-    } ${
-      isActive
-        ? "border-[var(--accent)] bg-[var(--accent)] text-white"
-        : "border-transparent bg-white text-[var(--ink)] hover:border-[var(--line)]"
     }`;
   };
 
   return (
     <aside className="flex h-full w-full min-w-0 flex-col">
       <div>
-        {!collapsed ? <p className="font-mono text-xs uppercase tracking-[0.16em] text-[var(--muted)]">Tools</p> : null}
+        {!collapsed ? <p className="dash-kicker">Tools</p> : null}
         <nav className="mt-3 flex flex-col gap-2">
           {toolItems.map((item) => {
             const href = resolveHref(item);
@@ -183,7 +160,7 @@ export default function SidebarNav() {
       </div>
 
       <div className="mt-5">
-        {!collapsed ? <p className="font-mono text-xs uppercase tracking-[0.16em] text-[var(--muted)]">Resources</p> : null}
+        {!collapsed ? <p className="dash-kicker">Resources</p> : null}
         <nav className="mt-3 flex flex-col gap-2">
           {resourceItems.map((item) => {
             const href = resolveHref(item);
@@ -200,7 +177,7 @@ export default function SidebarNav() {
       <div className="mt-auto pt-4">
         <a
           href={supportHref}
-          className={`block rounded-lg border border-transparent text-[var(--muted)] transition hover:border-[var(--line)] hover:bg-white hover:text-[var(--ink)] ${
+          className={`dash-frame-soft block text-[var(--muted)] transition hover:bg-white hover:text-[var(--ink)] ${
             collapsed ? "px-2 py-2 text-center text-[11px]" : "px-3 py-2 text-xs"
           }`}
           title="Need help? Contact support"

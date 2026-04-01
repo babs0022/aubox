@@ -3,11 +3,13 @@
 :root {
   --background: #f2eee5;
   --paper: #fffdf8;
+  --panel: #f8f5ee;
   --ink: #151515;
   --muted: #574f46;
   --accent: #0a6e5d;
   --accent-strong: #01493d;
   --line: rgba(21, 21, 21, 0.18);
+  --line-strong: #334032;
 }
 
 @theme inline {
@@ -36,6 +38,22 @@ a {
   text-decoration: none;
 }
 
+.onchain-link {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-thickness: 1.5px;
+}
+
+.onchain-link:hover {
+  color: var(--accent-strong);
+}
+
+.onchain-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
 @keyframes cardRise {
   from {
     opacity: 0;
@@ -50,4 +68,117 @@ a {
 
 .animate-card-rise {
   animation: cardRise 500ms ease-out both;
+}
+
+.app-shell,
+.dashboard-shell {
+  background-color: var(--paper);
+}
+
+.dash-kicker {
+  font-family: var(--font-jetbrains-mono), ui-monospace, monospace;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--accent-strong);
+  font-weight: 600;
+}
+
+.dash-frame {
+  border: 1px solid var(--line-strong);
+  background: var(--panel);
+  border-radius: 0;
+}
+
+.dash-frame-soft {
+  border: 1px solid var(--line);
+  background: var(--paper);
+  border-radius: 0;
+}
+
+.dash-nav-link {
+  position: relative;
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--line-strong);
+  border-radius: 0;
+  background: var(--panel);
+  color: var(--ink);
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-weight: 600;
+  transition: background-color 180ms ease, color 180ms ease;
+}
+
+.dash-nav-link::before,
+.dash-nav-link::after {
+  content: "";
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  opacity: 0;
+  transition: opacity 180ms ease;
+}
+
+.dash-nav-link::before {
+  top: 6px;
+  left: 6px;
+  border-top: 1px solid currentColor;
+  border-left: 1px solid currentColor;
+}
+
+.dash-nav-link::after {
+  right: 6px;
+  bottom: 6px;
+  border-right: 1px solid currentColor;
+  border-bottom: 1px solid currentColor;
+}
+
+.dash-nav-link:hover::before,
+.dash-nav-link:hover::after,
+.dash-nav-link-active::before,
+.dash-nav-link-active::after {
+  opacity: 1;
+}
+
+.dash-nav-link-active {
+  background: var(--accent-strong);
+  color: var(--paper);
+  border-color: var(--accent-strong);
+}
+
+/* Harmonize legacy dashboard utilities with the landing frame language. */
+.app-shell [class*="rounded-xl"],
+.dashboard-shell [class*="rounded-xl"],
+.app-shell [class*="rounded-lg"],
+.dashboard-shell [class*="rounded-lg"],
+.app-shell [class*="rounded-md"],
+.dashboard-shell [class*="rounded-md"],
+.app-shell [class*="rounded-full"],
+.dashboard-shell [class*="rounded-full"] {
+  border-radius: 0 !important;
+}
+
+.app-shell [class*="border"][class*="bg-white"],
+.dashboard-shell [class*="border"][class*="bg-white"] {
+  border-color: var(--line-strong);
+  background: var(--panel);
+}
+
+.app-shell [class*="font-mono"][class*="uppercase"] {
+  letter-spacing: 0.12em;
+}
+
+.app-shell input,
+.dashboard-shell input,
+.app-shell select,
+.dashboard-shell select,
+.app-shell textarea {
+  border-radius: 0;
+}
+
+.app-shell button,
+.dashboard-shell button {
+  border-radius: 0;
 }

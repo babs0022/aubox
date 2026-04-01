@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 400" width="500" height="400">
+  <!-- Background -->
+  <rect width="500" height="400" fill="#1d241b"/>
+  
+  <!-- Dithering pattern -->
+  <defs>
+    <pattern id="dither3" x="0" y="0" width="3" height="3" patternUnits="userSpaceOnUse">
+      <rect width="3" height="3" fill="#2d3428"/>
+      <circle cx="1" cy="1" r="0.6" fill="#0d5f53" opacity="0.35"/>
+      <circle cx="2.2" cy="1.8" r="0.5" fill="#5f6759" opacity="0.25"/>
+    </pattern>
+  </defs>
+  
+  <rect width="500" height="400" fill="url(#dither3)"/>
+  
+  <!-- Title -->
+  <text x="250" y="40" font-family="'Roboto Mono', monospace" font-size="16" font-weight="600" fill="#0d5f53" text-anchor="middle" letter-spacing="1">ENTITY INTELLIGENCE</text>
+  
+  <!-- Attribution visualization -->
+  <g stroke="#0d5f53" stroke-width="1.5" fill="none">
+    <!-- Automated suggestions -->
+    <g opacity="0.8">
+      <circle cx="120" cy="120" r="30" stroke="#0d5f53" stroke-dasharray="2,2"/>
+      <text x="120" y="110" font-family="monospace" font-size="10" fill="#0d5f53" text-anchor="middle" font-weight="600">Automated</text>
+      <text x="120" y="125" font-family="monospace" font-size="9" fill="#0d5f53" text-anchor="middle">Signals</text>
+    </g>
+    
+    <!-- Risk scoring -->
+    <g opacity="0.8">
+      <rect x="300" y="90" width="100" height="60" stroke="#0d5f53"/>
+      <text x="350" y="110" font-family="monospace" font-size="10" fill="#0d5f53" text-anchor="middle" font-weight="600">Risk</text>
+      <text x="350" y="125" font-family="monospace" font-size="10" fill="#0d5f53" text-anchor="middle">Scores</text>
+    </g>
+    
+    <!-- Connection arrow -->
+    <path d="M 150 120 L 300 120" stroke="#0d5f53" stroke-width="2"/>
+    <polygon points="300,120 290,115 290,125" fill="#0d5f53"/>
+    
+    <!-- Investigator review (center focus) -->
+    <circle cx="250" cy="240" r="50" stroke="#0d5f53" stroke-width="3"/>
+    <text x="250" y="235" font-family="monospace" font-size="12" fill="#0d5f53" text-anchor="middle" font-weight="600">INVESTIGATOR</text>
+    <text x="250" y="250" font-family="monospace" font-size="12" fill="#0d5f53" text-anchor="middle" font-weight="600">REVIEW</text>
+    
+    <!-- Input arrows to investigator -->
+    <path d="M 140 150 Q 200 190, 220 200" stroke="#0d5f53" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+    <path d="M 350 150 Q 300 190, 280 200" stroke="#0d5f53" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+    
+    <!-- Decision outputs -->
+    <g opacity="0.8">
+      <!-- Confirm -->
+      <rect x="50" y="310" width="80" height="50" stroke="#0d5f53" stroke-width="2"/>
+      <text x="90" y="340" font-family="monospace" font-size="10" fill="#0d5f53" text-anchor="middle" font-weight="600">Confirm</text>
+      
+      <!-- Reject -->
+      <rect x="190" y="310" width="80" height="50" stroke="#0d5f53" stroke-dasharray="2,2"/>
+      <text x="230" y="340" font-family="monospace" font-size="10" fill="#0d5f53" text-anchor="middle">Reject</text>
+      
+      <!-- Refine -->
+      <rect x="330" y="310" width="80" height="50" stroke="#0d5f53"/>
+      <text x="370" y="340" font-family="monospace" font-size="10" fill="#0d5f53" text-anchor="middle">Refine</text>
+    </g>
+    
+    <!-- Arrows from investigator to decisions -->
+    <path d="M 220 290 L 90 310" stroke="#0d5f53" stroke-width="1.5"/>
+    <path d="M 250 290 L 230 310" stroke="#0d5f53" stroke-width="1.5"/>
+    <path d="M 280 290 L 370 310" stroke="#0d5f53" stroke-width="1.5"/>
+  </g>
+  
+  <!-- Investigator control emphasis -->
+  <g opacity="0.2" stroke="#0d5f53" stroke-width="2">
+    <rect x="200" y="180" width="100" height="120" fill="none" stroke-dasharray="4,4"/>
+  </g>
+  
+  <!-- Dithering accent -->
+  <g opacity="0.1">
+    <rect x="0" y="360" width="500" height="40" fill="url(#dither3)"/>
+  </g>
+  
+  <!-- Arrow marker -->
+  <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="5" refY="5" orient="auto">
+      <polygon points="0 0, 10 5, 0 10" fill="#0d5f53"/>
+    </marker>
+  </defs>
+</svg>

@@ -38,6 +38,8 @@ type TransferEnrichment = {
   tokenSymbol: string;
   tokenName: string;
   tokenAddress: string;
+  timestamp: string;
+  blockNumber: string;
 };
 
 type SwapEnrichment = {
@@ -70,6 +72,21 @@ const pickString = (obj: Record<string, unknown>, keys: string[]): string => {
   for (const key of keys) {
     const value = obj[key];
     if (typeof value === "string" && value.length > 0) return value;
+    if (typeof value === "number" && Number.isFinite(value)) return String(value);
+    if (typeof value === "bigint") return value.toString();
+  }
+  return "";
+};
+
+const pickAddressString = (obj: Record<string, unknown>, keys: string[]): string => {
+  for (const key of keys) {
+    const value = obj[key];
+    if (typeof value === "string" && value.length > 0) return value;
+    if (value && typeof value === "object" && !Array.isArray(value)) {
+      const nested = value as Record<string, unknown>;
+      const address = pickString(nested, ["address", "wallet", "id"]);
+      if (address) return address;
+    }
   }
   return "";
 };
@@ -149,9 +166,11 @@ const normalizeTransferRows = (
   return rows.slice(0, 40).map((row) => {
     const token = asRecord(row.token) || asRecord(row.asset) || asRecord(row.currency);
 
-    const from = pickString(row, ["from", "fromAddress", "sender", "src"]);
-    const to = pickString(row, ["to", "toAddress", "recipient", "dst"]);
-    const value = pickString(row, ["value", "amount", "valueHex", "amountHex"]);
+    const from = pickAddressString(row, ["from", "fromAddress", "sender", "src"]);
+    const to = pickAddressString(row, ["to", "toAddress", "recipient", "dst"]);
+    const value =
+      pickString(row, ["value", "amount", "valueHex", "amountHex", "unitValue", "quantity", "formattedValue"]) ||
+      (token ? pickString(token, ["amount", "value", "quantity", "formatted"]) : "");
 
     const tokenSymbol =
       pickString(row, ["tokenSymbol", "symbol", "assetSymbol"]) ||
@@ -168,10 +187,12 @@ const normalizeTransferRows = (
       from,
       to,
       value: value || "n/a",
-      usd: pickNumber(row, ["usd", "usdValue", "valueUsd", "amountUsd"]),
+      usd: pickNumber(row, ["usd", "usdValue", "valueUsd", "amountUsd", "historicalUSD", "unitValueUsd"]),
       tokenSymbol,
       tokenName,
       tokenAddress,
+      timestamp: pickString(row, ["timestamp", "time", "blockTimestamp", "createdAt"]),
+      blockNumber: pickString(row, ["blockNumber", "block"]),
     };
   });
 };
@@ -315,27 +336,30 @@ export async function POST(request: NextRequest) {
     }
 
     const txRecord = tx || {};
-    const txSummary = {
-      from: pickString(txRecord, ["from", "fromAddress", "sender"]),
-      to: pickString(txRecord, ["to", "toAddress", "recipient"]),
-      method:
-        pickString(txRecord, ["method", "function", "functionName"]) ||
-        pickString(asRecord(txRecord.decodedCall) || txRecord, ["name", "method", "functionName"]),
-      functionSignature:
-        pickString(txRecord, ["functionSignature", "signature", "methodSignature"]) ||
-        pickString(asRecord(txRecord.decodedCall) || txRecord, ["signature", "selector"]),
-      value: pickString(txRecord, ["value", "valueHex", "amount"]),
-      usd: pickNumber(txRecord, ["usd", "usdValue", "valueUsd", "amountUsd"]),
-      gasUsed: pickString(txRecord, ["gasUsed", "gas", "gasSpent"]),
-      timestamp: pickString(txRecord, ["timestamp", "time", "blockTimestamp"]),
-      blockNumber: pickString(txRecord, ["blockNumber", "block"]),
-    };
 
     const transfers = [
       ...normalizeTransferRows("token", tokenTransfers),
       ...normalizeTransferRows("internal", internalTransfers),
       ...normalizeTransferRows("external", externalTransfers),
     ];
+
+    const transferFallback = transfers[0];
+    const txSummary = {
+      from: pickAddressString(txRecord, ["from", "fromAddress", "sender"]) || from,
+      to: pickAddressString(txRecord, ["to", "toAddress", "recipient"]) || to,
+      method:
+        pickString(txRecord, ["method", "function", "functionName"]) ||
+        pickString(asRecord(txRecord.decodedCall) || txRecord, ["name", "method", "functionName", "type"]),
+      functionSignature:
+        pickString(txRecord, ["functionSignature", "signature", "methodSignature"]) ||
+        pickString(asRecord(txRecord.decodedCall) || txRecord, ["signature", "selector", "methodId"]),
+      value: pickString(txRecord, ["value", "valueHex", "amount", "unitValue"]) || (transferFallback?.value || ""),
+      usd: pickNumber(txRecord, ["usd", "usdValue", "valueUsd", "amountUsd", "historicalUSD"])
+        ?? (transferFallback?.usd ?? null),
+      gasUsed: pickString(txRecord, ["gasUsed", "gas", "gasSpent"]),
+      timestamp: pickString(txRecord, ["timestamp", "time", "blockTimestamp"]) || (transferFallback?.timestamp || ""),
+      blockNumber: pickString(txRecord, ["blockNumber", "block"]) || (transferFallback?.blockNumber || ""),
+    };
 
     const fromAddressEnrichment = normalizeAddressEnrichment(
       from,

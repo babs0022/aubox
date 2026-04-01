@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { getActiveCaseId, setActiveCaseId, clearActiveCaseId } from "@/lib/case-client";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
 type CaseRecord = {
   id: string;
@@ -24,8 +24,6 @@ export default function CasesPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [pendingDeleteCaseId, setPendingDeleteCaseId] = useState<string | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
-
-  const activeCase = useMemo(() => cases.find((item) => item.id === localActiveCaseId) || null, [cases, localActiveCaseId]);
 
   const loadCases = async () => {
     setLoading(true);
@@ -97,7 +95,7 @@ export default function CasesPage() {
       window.dispatchEvent(new CustomEvent("caseswitched", { detail: { caseId } }));
       const selectedCase = cases.find((c) => c.id === caseId);
       setMessage(`Switched to case: ${selectedCase?.title}`);
-      router.push(`/dashboard/cases/${caseId}`);
+      router.push(`/cases/${caseId}`);
     } else {
       clearActiveCaseId();
       setMessage("Case deselected.");
@@ -132,12 +130,12 @@ export default function CasesPage() {
           setLocalActiveCaseId(nextActive);
           setActiveCaseId(nextActive);
           window.dispatchEvent(new CustomEvent("caseswitched", { detail: { caseId: nextActive } }));
-          router.push(`/dashboard/cases/${nextActive}`);
+          router.push(`/cases/${nextActive}`);
         } else {
           setLocalActiveCaseId("");
           clearActiveCaseId();
           window.dispatchEvent(new CustomEvent("caseswitched", { detail: { caseId: null } }));
-          router.push("/dashboard/cases");
+          router.push("/cases");
         }
       }
 
@@ -156,7 +154,7 @@ export default function CasesPage() {
     <div className="max-w-5xl mx-auto">
       <div className="mb-6">
         <Link
-          href="/dashboard"
+          href="/"
           className="text-sm font-semibold text-[var(--muted)] hover:text-[var(--accent)]"
         >
           ← Back to Dashboard
@@ -165,7 +163,7 @@ export default function CasesPage() {
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2">
-          <div className="rounded-2xl border border-[var(--line)] bg-white p-6">
+          <div className="dash-frame p-6">
             <h2 className="text-2xl font-bold text-[var(--ink)]">Your Investigation Cases</h2>
             <p className="mt-2 text-sm text-[var(--muted)]">
               Select a case to make it active, or create a new one below.
@@ -182,7 +180,7 @@ export default function CasesPage() {
                   return (
                     <div
                       key={caseItem.id}
-                      className={`w-full rounded-lg border px-4 py-3 text-left transition ${
+                      className={`w-full border px-4 py-3 text-left transition ${
                         isActive
                           ? "border-[var(--accent)] bg-[var(--accent)] text-white"
                           : "border-[var(--line)] bg-[var(--paper)] hover:border-[var(--accent)]"
@@ -201,14 +199,14 @@ export default function CasesPage() {
                         </button>
                         <div className="ml-3 flex items-center gap-2">
                           {isActive ? (
-                            <span className="rounded-full bg-brand-accent-strong px-2 py-1 text-xs font-semibold">
+                            <span className="border border-[var(--accent-strong)] bg-[var(--accent-strong)] px-2 py-1 text-xs font-semibold text-white">
                               Active
                             </span>
                           ) : null}
                           <button
                             type="button"
                             onClick={() => requestDeleteCase(caseItem.id)}
-                            className={`rounded-md border px-2 py-1 text-xs font-semibold transition ${
+                            className={`border px-2 py-1 text-xs font-semibold transition ${
                               isActive
                                 ? "border-red-200 bg-red-50 text-red-700 hover:bg-red-100"
                                 : "border-red-300 bg-white text-red-700 hover:bg-red-50"
@@ -226,7 +224,7 @@ export default function CasesPage() {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-[var(--line)] bg-white p-6">
+        <div className="dash-frame p-6">
           <h2 className="text-xl font-bold text-[var(--ink)]">Create New Case</h2>
           <form onSubmit={createNewCase} className="mt-4 space-y-3">
             <div>
@@ -237,7 +235,7 @@ export default function CasesPage() {
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="e.g. Suspicious Bridge Activity"
-                className="mt-1 w-full rounded-lg border border-[var(--line)] px-3 py-2 text-sm focus:border-[var(--accent)] focus:outline-none"
+                className="dash-frame-soft mt-1 w-full px-3 py-2 text-sm focus:border-[var(--accent)] focus:outline-none"
               />
             </div>
 
@@ -249,7 +247,7 @@ export default function CasesPage() {
                 value={targetAddress}
                 onChange={(e) => setTargetAddress(e.target.value)}
                 placeholder="0x..."
-                className="mt-1 w-full rounded-lg border border-[var(--line)] px-3 py-2 font-mono text-sm focus:border-[var(--accent)] focus:outline-none"
+                className="dash-frame-soft mt-1 w-full px-3 py-2 font-mono text-sm focus:border-[var(--accent)] focus:outline-none"
               />
             </div>
 
@@ -260,7 +258,7 @@ export default function CasesPage() {
               <select
                 value={chain}
                 onChange={(e) => setChain(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-[var(--line)] px-3 py-2 text-sm focus:border-[var(--accent)] focus:outline-none"
+                className="dash-frame-soft mt-1 w-full px-3 py-2 text-sm focus:border-[var(--accent)] focus:outline-none"
               >
                 <option value="ethereum">Ethereum</option>
                 <option value="bsc">BSC</option>
@@ -272,7 +270,7 @@ export default function CasesPage() {
 
             <button
               type="submit"
-              className="w-full rounded-lg bg-[var(--accent)] px-3 py-2 font-semibold text-white hover:bg-[var(--accent-strong)]"
+              className="w-full border border-[var(--accent-strong)] bg-[var(--accent)] px-3 py-2 font-semibold text-white hover:bg-[var(--accent-strong)]"
             >
               Create Case
             </button>
@@ -281,14 +279,14 @@ export default function CasesPage() {
       </div>
 
       {message && (
-        <div className="mt-4 rounded-lg border border-[var(--line)] bg-[var(--paper)] p-3 text-sm text-[var(--muted)]">
+        <div className="dash-frame-soft mt-4 p-3 text-sm text-[var(--muted)]">
           {message}
         </div>
       )}
 
       {pendingDeleteCase ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-md rounded-2xl border border-[var(--line)] bg-white p-5 shadow-2xl">
+          <div className="dash-frame w-full max-w-md p-5 shadow-2xl">
             <h3 className="text-lg font-bold text-[var(--ink)]">Delete Case?</h3>
             <p className="mt-2 text-sm text-[var(--muted)]">
               This will permanently remove
@@ -300,7 +298,7 @@ export default function CasesPage() {
                 type="button"
                 disabled={deleteLoading}
                 onClick={() => setPendingDeleteCaseId(null)}
-                className="rounded-lg border border-[var(--line)] bg-white px-3 py-2 text-sm font-semibold text-[var(--ink)] hover:bg-[var(--paper)] disabled:cursor-not-allowed disabled:opacity-60"
+                className="dash-frame-soft px-3 py-2 text-sm font-semibold text-[var(--ink)] hover:bg-[var(--paper)] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 Cancel
               </button>
@@ -308,7 +306,7 @@ export default function CasesPage() {
                 type="button"
                 disabled={deleteLoading}
                 onClick={() => void onDeleteCase()}
-                className="rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+                className="border border-red-300 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {deleteLoading ? "Deleting..." : "Delete Case"}
               </button>

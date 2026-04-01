@@ -9,6 +9,7 @@ import {
 } from "@/lib/datasources";
 
 const MAX_HOPS = 700;
+const TRACE_VALUE_DEBUG = process.env.TRACE_VALUE_DEBUG === "true";
 
 type Direction = "inbound" | "outbound" | "both";
 
@@ -194,13 +195,91 @@ const pickNumericLike = (value: unknown): unknown => {
   if (typeof value === "string") return value;
   if (!value || typeof value !== "object" || Array.isArray(value)) return 0;
   const row = value as Record<string, unknown>;
-  return row.value ?? row.amount ?? row.raw ?? 0;
+  return row.value ?? row.amount ?? row.raw ?? row.quantity ?? row.hex ?? row.wei ?? row.unitValue ?? 0;
+};
+
+const toHexQuantity = (value: unknown): string | null => {
+  if (typeof value === "number") {
+    if (!Number.isFinite(value) || value < 0) return null;
+    if (!Number.isInteger(value)) return null;
+    return `0x${Math.floor(value).toString(16)}`;
+  }
+
+  if (typeof value === "bigint") {
+    if (value < BigInt(0)) return null;
+    return `0x${value.toString(16)}`;
+  }
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (/^0x[0-9a-fA-F]+$/.test(trimmed)) {
+      return trimmed;
+    }
+    if (/^[0-9]+$/.test(trimmed)) {
+      try {
+        return `0x${BigInt(trimmed).toString(16)}`;
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    const row = value as Record<string, unknown>;
+    const candidates = [row.hex, row.value, row.amount, row.raw, row.quantity, row.wei, row.valueWei];
+    for (const candidate of candidates) {
+      const parsed = toHexQuantity(candidate);
+      if (parsed) return parsed;
+    }
+  }
+
+  return null;
+};
+
+const pickQuantityText = (value: unknown): string | null => {
+  if (typeof value === "number") {
+    if (!Number.isFinite(value)) return null;
+    return String(value);
+  }
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  }
+
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+
+  const row = value as Record<string, unknown>;
+  const candidates = [
+    row.formatted,
+    row.display,
+    row.displayValue,
+    row.amountFormatted,
+    row.valueFormatted,
+    row.humanReadable,
+    row.quantity,
+    row.amount,
+    row.value,
+    row.raw,
+  ];
+
+  for (const candidate of candidates) {
+    const parsed = pickQuantityText(candidate);
+    if (parsed) return parsed;
+  }
+
+  return null;
 };
 
 const pickString = (row: Record<string, unknown>, keys: string[]): string => {
   for (const key of keys) {
     const value = row[key];
     if (typeof value === "string" && value.length > 0) return value;
+    if (typeof value === "number" && Number.isFinite(value)) return String(value);
+    if (typeof value === "bigint") return value.toString();
   }
   return "";
 };
@@ -227,18 +306,18 @@ const normalizeArkhamTransfers = (rows: Array<Record<string, unknown>>): TraceRe
       return;
     }
 
-    let valueHex = "0x0";
-    if (typeof value === "number" && Number.isFinite(value) && value >= 0) {
-      valueHex = `0x${Math.floor(value).toString(16)}`;
-    } else if (typeof value === "string" && value.startsWith("0x")) {
-      valueHex = value;
-    }
+    const valueHex = toHexQuantity(value);
+    const fallbackQuantityText = valueHex ? null : pickQuantityText(value);
+    const normalizedValue = valueHex || fallbackQuantityText || "0x0";
 
     const action = row.action && typeof row.action === "object" && !Array.isArray(row.action)
       ? (row.action as Record<string, unknown>)
       : null;
     const token = row.token && typeof row.token === "object" && !Array.isArray(row.token)
       ? (row.token as Record<string, unknown>)
+      : null;
+    const transfer = row.transfer && typeof row.transfer === "object" && !Array.isArray(row.transfer)
+      ? (row.transfer as Record<string, unknown>)
       : null;
     const decodedCall = row.decodedCall && typeof row.decodedCall === "object" && !Array.isArray(row.decodedCall)
       ? (row.decodedCall as Record<string, unknown>)
@@ -248,7 +327,7 @@ const normalizeArkhamTransfers = (rows: Array<Record<string, unknown>>): TraceRe
       action: {
         from: normalizedFrom,
         to: normalizedTo,
-        value: valueHex,
+        value: normalizedValue,
       },
       transactionHash: txHash,
       blockNumber: pickString(row, ["blockNumber", "block"]) || "0x0",
@@ -282,6 +361,27 @@ const normalizeArkhamTransfers = (rows: Array<Record<string, unknown>>): TraceRe
         (action ? pickNumber(action, ["usd", "usdValue", "valueUsd", "amountUsd", "volumeUsd"]) : null) ||
         undefined,
     });
+
+    if (TRACE_VALUE_DEBUG && normalizedValue === "0x0") {
+      console.warn("[trace-value-debug] normalized to 0x0", {
+        txHash,
+        tokenSymbol:
+          pickString(row, ["tokenSymbol", "symbol", "assetSymbol", "currencySymbol"]) ||
+          (token ? pickString(token, ["symbol", "tokenSymbol", "ticker"]) : ""),
+        valueInputType: typeof value,
+        valueInput: value,
+        topLevelValue: row.value,
+        topLevelAmount: row.amount,
+        topLevelTokenAmount: row.tokenAmount,
+        actionValue: action?.value,
+        actionAmount: action?.amount,
+        transferValue: transfer?.value,
+        transferAmount: transfer?.amount,
+        tokenValue: token?.value,
+        tokenAmount: token?.amount,
+        tokenFormatted: token?.formatted,
+      });
+    }
   };
 
   for (const row of rows) {
@@ -299,7 +399,43 @@ const normalizeArkhamTransfers = (rows: Array<Record<string, unknown>>): TraceRe
       (typeof row.to === "string" && row.to) ||
       pickAddress(row.to);
 
-    const value = pickNumericLike(row.value ?? row.amount);
+    const action = row.action && typeof row.action === "object" && !Array.isArray(row.action)
+      ? (row.action as Record<string, unknown>)
+      : null;
+    const transfer = row.transfer && typeof row.transfer === "object" && !Array.isArray(row.transfer)
+      ? (row.transfer as Record<string, unknown>)
+      : null;
+    const token = row.token && typeof row.token === "object" && !Array.isArray(row.token)
+      ? (row.token as Record<string, unknown>)
+      : null;
+
+    const value = pickNumericLike(
+      row.value ??
+      row.amount ??
+      row.tokenAmount ??
+      row.amountToken ??
+      row.amountDecimal ??
+      row.unitValue ??
+      row.quantity ??
+      row.valueWei ??
+      row.amountWei ??
+      action?.value ??
+      action?.amount ??
+      action?.unitValue ??
+      action?.quantity ??
+      action?.valueWei ??
+      transfer?.value ??
+      transfer?.amount ??
+      transfer?.unitValue ??
+      transfer?.quantity ??
+      transfer?.valueWei ??
+      token?.value ??
+      token?.amount ??
+      token?.unitValue ??
+      token?.quantity ??
+      token?.tokenAmount ??
+      token?.formatted
+    );
 
     if (!txHash || !from || !to) continue;
     pushTransfer(txHash, from, to, value, row);
@@ -442,6 +578,17 @@ type ClusterEvidence = {
   weight: number;
   value: number;
   detail: string;
+  proofs: ClusterProof[];
+};
+
+type ClusterProof = {
+  type: "tx" | "address" | "graph";
+  source: string;
+  label: string;
+  txHash?: string;
+  address?: string;
+  explorerUrl?: string;
+  graphRef?: string;
 };
 
 type ClusterEdge = {
@@ -520,6 +667,30 @@ const pagesByTimeWindow = (timeWindow: ClusterTimeWindow): number => {
   return 5;
 };
 
+const explorerBaseByChain: Record<string, string> = {
+  ethereum: "https://etherscan.io",
+  bsc: "https://bscscan.com",
+  base: "https://basescan.org",
+  arbitrum: "https://arbiscan.io",
+  hyperliquid: "https://hyperevmscan.io",
+};
+
+const explorerTxLink = (chain: string, txHash: string): string | undefined => {
+  const base = explorerBaseByChain[chain.toLowerCase()];
+  if (!base || !/^0x[a-fA-F0-9]{64}$/.test(txHash)) {
+    return undefined;
+  }
+  return `${base}/tx/${txHash}`;
+};
+
+const explorerAddressLink = (chain: string, address: string): string | undefined => {
+  const base = explorerBaseByChain[chain.toLowerCase()];
+  if (!base || !/^0x[a-fA-F0-9]{40}$/.test(address)) {
+    return undefined;
+  }
+  return `${base}/address/${address}`;
+};
+
 const aggregateEvidence = (edges: ClusterEdge[]): ClusterEvidence[] => {
   const byCode = new Map<string, ClusterEvidence>();
 
@@ -534,6 +705,15 @@ const aggregateEvidence = (edges: ClusterEdge[]): ClusterEvidence[] => {
       existing.weight += item.weight;
       existing.value += item.value;
       existing.detail = `${existing.detail}; ${item.detail}`;
+      const mergedProofs = [...existing.proofs, ...item.proofs];
+      const deduped = new Map<string, ClusterProof>();
+      for (const proof of mergedProofs) {
+        const key = `${proof.type}|${proof.source}|${proof.txHash || ""}|${proof.address || ""}|${proof.graphRef || ""}|${proof.label}`;
+        if (!deduped.has(key)) {
+          deduped.set(key, proof);
+        }
+      }
+      existing.proofs = Array.from(deduped.values()).slice(0, 10);
     }
   }
 
@@ -549,11 +729,34 @@ const edgeBetween = (a: string, b: string): string => (a < b ? `${a}|${b}` : `${
 const scoreEdge = (
   a: string,
   b: string,
+  chain: string,
   neighborhoods: Map<string, Set<string>>,
   transferNeighbors: Map<string, Set<string>>,
-  arkhamMembersBySeed: Map<string, Set<string>>
+  arkhamMembersBySeed: Map<string, Set<string>>,
+  counterpartyTxProofsBySeed: Map<string, Map<string, Set<string>>>,
+  transferTxProofsBySeed: Map<string, Map<string, Set<string>>>
 ): ClusterEdge => {
   const evidence: ClusterEvidence[] = [];
+
+  const collectTxProofs = (hashes: Iterable<string>, source: string): ClusterProof[] => {
+    const proofs: ClusterProof[] = [];
+    for (const txHash of hashes) {
+      if (!/^0x[a-fA-F0-9]{64}$/.test(txHash)) {
+        continue;
+      }
+      proofs.push({
+        type: "tx",
+        source,
+        label: txHash,
+        txHash,
+        explorerUrl: explorerTxLink(chain, txHash),
+      });
+      if (proofs.length >= 5) {
+        break;
+      }
+    }
+    return proofs;
+  };
 
   const aCluster = arkhamMembersBySeed.get(a) || new Set<string>();
   const bCluster = arkhamMembersBySeed.get(b) || new Set<string>();
@@ -565,6 +768,22 @@ const scoreEdge = (
       weight: 55,
       value: 1,
       detail: `${shortenAddressLike(a)} and ${shortenAddressLike(b)} co-appear in Arkham cluster context`,
+      proofs: [
+        {
+          type: "address",
+          source: "arkham",
+          label: `${shortenAddressLike(a)} explorer profile`,
+          address: a,
+          explorerUrl: explorerAddressLink(chain, a),
+        },
+        {
+          type: "address",
+          source: "arkham",
+          label: `${shortenAddressLike(b)} explorer profile`,
+          address: b,
+          explorerUrl: explorerAddressLink(chain, b),
+        },
+      ],
     });
   }
 
@@ -573,12 +792,42 @@ const scoreEdge = (
   const sharedCounterparties = overlapScore(cpA, cpB);
   if (sharedCounterparties > 0) {
     const weight = Math.min(30, sharedCounterparties * 6);
+    const sharedCounterpartyList = Array.from(cpA.values()).filter((value) => cpB.has(value)).slice(0, 4);
+    const cpTxProofs: ClusterProof[] = [];
+    const txByA = counterpartyTxProofsBySeed.get(a) || new Map<string, Set<string>>();
+    const txByB = counterpartyTxProofsBySeed.get(b) || new Map<string, Set<string>>();
+
+    for (const sharedCounterparty of sharedCounterpartyList) {
+      cpTxProofs.push({
+        type: "address",
+        source: "counterparties",
+        label: `Shared counterparty ${shortenAddressLike(sharedCounterparty)}`,
+        address: sharedCounterparty,
+        explorerUrl: explorerAddressLink(chain, sharedCounterparty),
+      });
+
+      const txHashes = new Set<string>([
+        ...(txByA.get(sharedCounterparty) || new Set<string>()),
+        ...(txByB.get(sharedCounterparty) || new Set<string>()),
+      ]);
+      for (const proof of collectTxProofs(txHashes, "counterparties")) {
+        cpTxProofs.push(proof);
+        if (cpTxProofs.length >= 8) {
+          break;
+        }
+      }
+      if (cpTxProofs.length >= 8) {
+        break;
+      }
+    }
+
     evidence.push({
       code: "counterpartyOverlap",
       label: "Shared counterparties",
       weight,
       value: sharedCounterparties,
       detail: `${sharedCounterparties} overlapping counterparties`,
+      proofs: cpTxProofs,
     });
   }
 
@@ -593,17 +842,33 @@ const scoreEdge = (
       weight,
       value: sharedTransferNeighbors,
       detail: `${sharedTransferNeighbors} shared transfer neighbors`,
+      proofs: [
+        {
+          type: "graph",
+          source: "transfers",
+          label: `Graph relation ${shortenAddressLike(a)} ↔ ${shortenAddressLike(b)}`,
+          graphRef: `${a}<->${b}`,
+        },
+      ],
     });
   }
 
   const directTransfers = txA.has(b) || txB.has(a);
   if (directTransfers) {
+    const txByA = transferTxProofsBySeed.get(a) || new Map<string, Set<string>>();
+    const txByB = transferTxProofsBySeed.get(b) || new Map<string, Set<string>>();
+    const directTx = new Set<string>([
+      ...(txByA.get(b) || new Set<string>()),
+      ...(txByB.get(a) || new Set<string>()),
+    ]);
+
     evidence.push({
       code: "directTransfers",
       label: "Direct seed-to-seed transfers",
       weight: 20,
       value: 1,
       detail: "Observed direct transfer adjacency between seeds",
+      proofs: collectTxProofs(directTx, "transfers"),
     });
   }
 
@@ -635,6 +900,8 @@ export const executeClusterWorkflow = async (
   const normalizedSeeds = Array.from(new Set(seedAddresses.map(normalizeAddress)));
   const perSeedCounterparties = new Map<string, Set<string>>();
   const perSeedTransferNeighbors = new Map<string, Set<string>>();
+  const perSeedCounterpartyTxProofs = new Map<string, Map<string, Set<string>>>();
+  const perSeedTransferTxProofs = new Map<string, Map<string, Set<string>>>();
   const arkhamMembersBySeed = new Map<string, Set<string>>();
   const seedDiagnostics: ClusterSeedDiagnostics[] = [];
   const pageLimit = 100;
@@ -657,6 +924,8 @@ export const executeClusterWorkflow = async (
     const counterparties = new Set<string>();
     const transferNeighbors = new Set<string>();
     const arkhamMembersSet = new Set<string>();
+    const counterpartyTxProofs = new Map<string, Set<string>>();
+    const transferTxProofs = new Map<string, Set<string>>();
     let counterpartiesPages = 0;
     let transferPages = 0;
     let counterpartiesRowsTotal = 0;
@@ -725,6 +994,7 @@ export const executeClusterWorkflow = async (
       }
 
       for (const row of cpRows) {
+        const txHash = pickTxHash(row);
         const candidate =
           (typeof row.address === "string" && row.address) ||
           pickAddress(row.address) ||
@@ -749,6 +1019,11 @@ export const executeClusterWorkflow = async (
         const normalized = normalizeAddress(candidate);
         if (normalized && normalized !== seed) {
           counterparties.add(normalized);
+          if (txHash && /^0x[a-fA-F0-9]{64}$/.test(txHash)) {
+            const setForAddress = counterpartyTxProofs.get(normalized) || new Set<string>();
+            setForAddress.add(txHash);
+            counterpartyTxProofs.set(normalized, setForAddress);
+          }
         }
       }
 
@@ -787,6 +1062,7 @@ export const executeClusterWorkflow = async (
       }
 
       for (const row of transferRows) {
+        const txHash = pickTxHash(row);
         const from =
           (typeof row.fromAddress === "string" && row.fromAddress) ||
           pickAddress(row.fromAddress) ||
@@ -819,6 +1095,11 @@ export const executeClusterWorkflow = async (
           const normalizedFrom = normalizeAddress(from);
           if (normalizedFrom && normalizedFrom !== seed) {
             transferNeighbors.add(normalizedFrom);
+            if (txHash && /^0x[a-fA-F0-9]{64}$/.test(txHash)) {
+              const setForAddress = transferTxProofs.get(normalizedFrom) || new Set<string>();
+              setForAddress.add(txHash);
+              transferTxProofs.set(normalizedFrom, setForAddress);
+            }
           }
         }
 
@@ -826,6 +1107,11 @@ export const executeClusterWorkflow = async (
           const normalizedTo = normalizeAddress(to);
           if (normalizedTo && normalizedTo !== seed) {
             transferNeighbors.add(normalizedTo);
+            if (txHash && /^0x[a-fA-F0-9]{64}$/.test(txHash)) {
+              const setForAddress = transferTxProofs.get(normalizedTo) || new Set<string>();
+              setForAddress.add(txHash);
+              transferTxProofs.set(normalizedTo, setForAddress);
+            }
           }
         }
       }
@@ -875,6 +1161,8 @@ export const executeClusterWorkflow = async (
 
     perSeedCounterparties.set(seed, counterparties);
     perSeedTransferNeighbors.set(seed, transferNeighbors);
+    perSeedCounterpartyTxProofs.set(seed, counterpartyTxProofs);
+    perSeedTransferTxProofs.set(seed, transferTxProofs);
     arkhamMembersBySeed.set(seed, arkhamMembersSet);
 
     const seedDiag: ClusterSeedDiagnostics = {
@@ -918,7 +1206,16 @@ export const executeClusterWorkflow = async (
     for (let j = i + 1; j < normalizedSeeds.length; j += 1) {
       const a = normalizedSeeds[i];
       const b = normalizedSeeds[j];
-      const edge = scoreEdge(a, b, perSeedCounterparties, perSeedTransferNeighbors, arkhamMembersBySeed);
+      const edge = scoreEdge(
+        a,
+        b,
+        chain,
+        perSeedCounterparties,
+        perSeedTransferNeighbors,
+        arkhamMembersBySeed,
+        perSeedCounterpartyTxProofs,
+        perSeedTransferTxProofs
+      );
       if (edge.confidence < minEdgeConfidence) continue;
 
       adjacency.get(a)?.add(b);

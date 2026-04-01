@@ -88,13 +88,13 @@ export default function ProfilePage() {
       <div className="mx-auto max-w-2xl px-4 py-8">
         <Link
           href="/guide"
-          className="mb-4 inline-block rounded-lg border border-[var(--line)] bg-white px-3 py-2 text-sm font-semibold hover:border-[var(--accent)]"
+          className="dash-frame-soft mb-4 inline-block px-3 py-2 text-xs font-semibold uppercase tracking-[0.08em] hover:border-[var(--accent)]"
         >
           Open Guide
         </Link>
         <h1 className="mb-8 text-3xl font-bold">Profile</h1>
 
-        <div className="rounded-2xl border border-[var(--line)] bg-[var(--paper)] p-8">
+        <div className="dash-frame p-8">
           {/* Avatar Section */}
           <div className="mb-8 text-center">
         {profileIcon ? (
@@ -195,7 +195,7 @@ export default function ProfilePage() {
               </button>
               <button
                 type="button"
-                onClick={() => router.push("/dashboard")}
+                onClick={() => router.push("/")}
                 className="flex-1 rounded-lg border border-[var(--line)] px-4 py-2 font-semibold hover:bg-[var(--paper-hover)]"
               >
                 Back
@@ -216,7 +216,7 @@ export default function ProfilePage() {
         </div>
 
         {/* Account Info */}
-        <div className="mt-8 rounded-2xl border border-[var(--line)] bg-[var(--paper)] p-6">
+        <div className="dash-frame mt-8 p-6">
           <h2 className="mb-4 text-lg font-semibold">Account Information</h2>
           <div className="space-y-3 text-sm">
             <div>

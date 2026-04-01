@@ -13,7 +13,7 @@ export default function ForgotPasswordPage() {
             <h1 className="mt-4 text-4xl font-semibold tracking-tight text-[var(--ink)]">Reset password</h1>
             <p className="mt-2 text-sm text-[var(--muted)]">Enter your account email to receive a recovery link.</p>
 
-            <div className="mt-6 rounded-2xl border border-[#e5e7eb] bg-white p-6 shadow-[0_6px_22px_rgba(0,0,0,0.05)]">
+            <div className="dash-frame mt-6 p-6 shadow-[0_8px_20px_rgba(0,0,0,0.08)]">
               <ForgotPasswordForm />
             </div>
 
@@ -27,7 +27,7 @@ export default function ForgotPasswordPage() {
         </section>
 
         <section className="hidden bg-[radial-gradient(circle_at_14%_18%,rgba(10,110,93,0.22),transparent_42%),radial-gradient(circle_at_86%_82%,rgba(191,78,30,0.2),transparent_46%),linear-gradient(180deg,#f7f3eb_0%,#ece6db_100%)] lg:flex lg:items-center lg:justify-center">
-          <div className="max-w-md px-10 text-center">
+          <div className="dash-frame max-w-md px-10 py-10 text-center">
             <ProductAimDiagram className="mb-6" />
             <p className="text-3xl font-semibold tracking-tight text-[var(--ink)]">Account Recovery</p>
             <p className="mt-4 text-lg leading-8 text-[var(--muted)]">

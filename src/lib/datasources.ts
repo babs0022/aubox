@@ -46,6 +46,7 @@ const NANSEN_BASE_URL = process.env.NANSEN_API_URL || "https://api.nansen.ai/api
 const DESEARCH_BASE_URL = process.env.DESEARCH_API_URL || "https://api.desearch.ai";
 const DEFILLAMA_BASE_URL = process.env.DEFILLAMA_API_URL || "https://api.llama.fi";
 const DUNE_BASE_URL = process.env.DUNE_API_URL || "https://api.dune.com/api/v1";
+const PROVIDER_TIMEOUT_MS = 6000;
 const DESEARCH_SEARCH_PATH = process.env.DESEARCH_SEARCH_PATH || "/twitter";
 const DESEARCH_SEARCH_FALLBACK_PATHS = (
   process.env.DESEARCH_SEARCH_FALLBACK_PATHS || "/twitter,/desearch/ai/search/links/twitter"
@@ -292,6 +293,7 @@ export const rpcCall = async (chain: string, method: string, params: unknown[]) 
         headers: {
           "Content-Type": "application/json",
         },
+        timeout: PROVIDER_TIMEOUT_MS,
       }
     );
 
@@ -336,6 +338,7 @@ export const arkhamLookup = async (address: string, chain?: string): Promise<Ark
         "Content-Type": "application/json",
         "API-Key": apiKey,
       },
+      timeout: PROVIDER_TIMEOUT_MS,
     });
 
     const data = response.data as Record<string, unknown>;
@@ -1407,6 +1410,79 @@ export interface TokenRiskScore {
   createdAt?: string;
 }
 
+const toFiniteNumber = (value: unknown): number | null => {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === "string") {
+    const parsed = Number.parseFloat(value);
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+  return null;
+};
+
+const geckoTerminalTokenMarket = async (
+  tokenAddress: string,
+  chain: string
+): Promise<{ liquidity: number; volume24h: number } | null> => {
+  const networkMap: Record<string, string> = {
+    ethereum: "eth",
+    bsc: "bsc",
+    base: "base",
+    arbitrum: "arbitrum",
+  };
+
+  const network = networkMap[chain];
+  const normalizedAddress = tokenAddress.trim().toLowerCase();
+  if (!network || !/^0x[a-f0-9]{40}$/.test(normalizedAddress)) {
+    return null;
+  }
+
+  try {
+    const baseUrl = process.env.GECKOTERMINAL_API_URL || "https://api.geckoterminal.com/api/v2";
+    const response = await axios.get(`${baseUrl}/networks/${network}/tokens/${normalizedAddress}/pools`, {
+      timeout: 6000,
+    });
+
+    const payload = response.data as Record<string, unknown>;
+    const rows = Array.isArray(payload.data) ? payload.data : [];
+    const pools = rows
+      .filter((row): row is Record<string, unknown> => Boolean(row && typeof row === "object" && !Array.isArray(row)))
+      .map((row) => (row.attributes && typeof row.attributes === "object" ? (row.attributes as Record<string, unknown>) : null))
+      .filter((row): row is Record<string, unknown> => Boolean(row));
+
+    if (pools.length === 0) {
+      return null;
+    }
+
+    const bestPool = pools
+      .slice()
+      .sort((a, b) => (toFiniteNumber(b.reserve_in_usd) || 0) - (toFiniteNumber(a.reserve_in_usd) || 0))[0];
+
+    const liquidity = toFiniteNumber(bestPool.reserve_in_usd) || 0;
+    const volumeNode =
+      bestPool.volume_usd && typeof bestPool.volume_usd === "object"
+        ? (bestPool.volume_usd as Record<string, unknown>)
+        : undefined;
+    const volume24h = toFiniteNumber(volumeNode?.h24) || 0;
+
+    return {
+      liquidity,
+      volume24h,
+    };
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      const status = error.response?.status;
+      if (status && status !== 404) {
+        console.warn(`GeckoTerminal market lookup failed (${status}) for ${chain}:${tokenAddress}`);
+      }
+    }
+    return null;
+  }
+};
+
 export interface TokenMovementIntel {
   chain: string;
   tokenAddress: string;
@@ -1452,25 +1528,93 @@ export type DuneBridgeContext = {
   latestRecord: Record<string, unknown> | null;
 };
 
+export type DuneBridgeRows = {
+  queryId: number;
+  rows: Array<Record<string, unknown>>;
+};
+
 // Dexscreener token enrichment with risk scoring
 export const dexscreenerTokenRisk = async (tokenAddress: string, chain: string): Promise<TokenRiskScore | null> => {
   try {
     const baseUrl = process.env.DEXSCREENER_API_URL || "https://api.dexscreener.com/latest";
+    const normalizedAddress = tokenAddress.trim().toLowerCase();
+    if (!/^0x[a-f0-9]{40}$/.test(normalizedAddress)) {
+      return null;
+    }
+
     const chainMap: Record<string, string> = {
-      ethereum: "eth",
+      ethereum: "ethereum",
       bsc: "bsc",
       base: "base",
       arbitrum: "arbitrum",
       hyperliquid: "hyperliquid",
     };
-    const dexChain = chainMap[chain] || chain;
+    const targetChain = chainMap[chain] || chain;
 
-    const response = await axios.get(`${baseUrl}/dex/tokens/${dexChain}:${tokenAddress}`, {
-      timeout: 5000,
-    });
+    const getPairs = async (url: string): Promise<Record<string, unknown>[]> => {
+      const response = await axios.get(url, { timeout: 5000 });
+      const data = response.data as Record<string, unknown>;
+      const pairs = data.pairs;
+      if (!Array.isArray(pairs)) {
+        return [];
+      }
+      return pairs.filter(
+        (pair): pair is Record<string, unknown> => Boolean(pair && typeof pair === "object" && !Array.isArray(pair))
+      );
+    };
 
-    const data = response.data as Record<string, unknown>;
-    if (!data.pairs || !Array.isArray(data.pairs) || data.pairs.length === 0) {
+    let pairs: Record<string, unknown>[] = [];
+
+    try {
+      pairs = await getPairs(`${baseUrl}/dex/tokens/${normalizedAddress}`);
+    } catch (primaryError) {
+      if (axios.isAxiosError(primaryError) && primaryError.response?.status !== 404) {
+        throw primaryError;
+      }
+    }
+
+    if (pairs.length === 0) {
+      try {
+        pairs = await getPairs(`${baseUrl}/dex/search?q=${normalizedAddress}`);
+      } catch (fallbackError) {
+        if (axios.isAxiosError(fallbackError) && fallbackError.response?.status !== 404) {
+          throw fallbackError;
+        }
+      }
+    }
+
+    if (pairs.length === 0) {
+      const geckoMarket = await geckoTerminalTokenMarket(normalizedAddress, chain);
+      if (geckoMarket) {
+        const factors = {
+          isNewToken: false,
+          lowLiquidity: geckoMarket.liquidity < 50000,
+          lowVolume: geckoMarket.volume24h < 10000,
+          noTrading: geckoMarket.volume24h === 0,
+        };
+
+        let score = 0;
+        let riskLevel: TokenRiskLevel = "low";
+
+        if (factors.noTrading) score += 40;
+        else if (factors.lowVolume) score += 25;
+
+        if (factors.lowLiquidity) score += 35;
+
+        if (score >= 80) riskLevel = "critical";
+        else if (score >= 60) riskLevel = "high";
+        else if (score >= 40) riskLevel = "medium";
+        else riskLevel = "low";
+
+        return {
+          riskLevel,
+          score: Math.min(100, score),
+          factors,
+          liquidity: geckoMarket.liquidity,
+          volume24h: geckoMarket.volume24h,
+        };
+      }
+
       return {
         riskLevel: "critical",
         score: 95,
@@ -1483,26 +1627,51 @@ export const dexscreenerTokenRisk = async (tokenAddress: string, chain: string):
       };
     }
 
-    const pair = (data.pairs as unknown[])[0] as Record<string, unknown>;
-    
+    const pairsOnChain = pairs.filter((pair) => {
+      const chainId = typeof pair.chainId === "string" ? pair.chainId.toLowerCase() : "";
+      return chainId === targetChain;
+    });
+
+    const rankedPairs = (pairsOnChain.length > 0 ? pairsOnChain : pairs).slice().sort((a, b) => {
+      const aLiquidity = toFiniteNumber((a.liquidity as Record<string, unknown> | undefined)?.usd) || 0;
+      const bLiquidity = toFiniteNumber((b.liquidity as Record<string, unknown> | undefined)?.usd) || 0;
+      return bLiquidity - aLiquidity;
+    });
+
+    const pair = rankedPairs[0];
+
     const liquidity = (() => {
       const liq = pair.liquidity as Record<string, unknown> | undefined;
-      return typeof liq?.usd === "number" ? liq.usd : 0;
+      return toFiniteNumber(liq?.usd) || 0;
     })();
-    
+
     const volume24h = (() => {
       const vol = pair.volume as Record<string, unknown> | undefined;
-      return typeof vol?.h24 === "number" ? vol.h24 : 0;
+      return toFiniteNumber(vol?.h24) || 0;
     })();
-    
+
     const pairCreatedAt = typeof pair.pairCreatedAt === "number" ? new Date(pair.pairCreatedAt) : null;
     const ageHours = pairCreatedAt ? (Date.now() - pairCreatedAt.getTime()) / (1000 * 60 * 60) : 999;
 
+    let finalLiquidity = liquidity;
+    let finalVolume24h = volume24h;
+    if (finalLiquidity === 0 || finalVolume24h === 0) {
+      const geckoMarket = await geckoTerminalTokenMarket(normalizedAddress, chain);
+      if (geckoMarket) {
+        if (finalLiquidity === 0) {
+          finalLiquidity = geckoMarket.liquidity;
+        }
+        if (finalVolume24h === 0) {
+          finalVolume24h = geckoMarket.volume24h;
+        }
+      }
+    }
+
     const factors = {
       isNewToken: ageHours < 24,
-      lowLiquidity: liquidity < 50000,
-      lowVolume: volume24h < 10000,
-      noTrading: volume24h === 0,
+      lowLiquidity: finalLiquidity < 50000,
+      lowVolume: finalVolume24h < 10000,
+      noTrading: finalVolume24h === 0,
     };
 
     let score = 0;
@@ -1523,8 +1692,8 @@ export const dexscreenerTokenRisk = async (tokenAddress: string, chain: string):
       riskLevel,
       score: Math.min(100, score),
       factors,
-      liquidity,
-      volume24h,
+      liquidity: finalLiquidity,
+      volume24h: finalVolume24h,
       createdAt: pairCreatedAt?.toISOString(),
     };
   } catch (error) {
@@ -1734,6 +1903,22 @@ export const duneBridgeContextForAddress = async (
   address: string,
   chain: string
 ): Promise<DuneBridgeContext | null> => {
+  const rowsResult = await duneBridgeRowsForAddress(address, chain);
+  if (!rowsResult) {
+    return null;
+  }
+
+  return {
+    queryId: rowsResult.queryId,
+    matchedRows: rowsResult.rows.length,
+    latestRecord: rowsResult.rows[0] || null,
+  };
+};
+
+export const duneBridgeRowsForAddress = async (
+  address: string,
+  chain: string
+): Promise<DuneBridgeRows | null> => {
   const apiKey = process.env.DUNE_API_KEY;
   const queryIdRaw = process.env.DUNE_BRIDGE_QUERY_ID;
   if (!apiKey || !queryIdRaw) {
@@ -1774,11 +1959,7 @@ export const duneBridgeContextForAddress = async (
       (item): item is Record<string, unknown> => Boolean(item && typeof item === "object" && !Array.isArray(item))
     );
 
-    return {
-      queryId,
-      matchedRows: rows.length,
-      latestRecord: rows[0] || null,
-    };
+    return { queryId, rows };
   } catch (error) {
     if (axios.isAxiosError(error)) {
       const status = error.response?.status;
@@ -1791,6 +1972,124 @@ export const duneBridgeContextForAddress = async (
     return null;
   }
 };
+
+  export type DuneFundFlowRows = {
+    queryId: string;
+    rows: Array<Record<string, unknown>>;
+  };
+
+  export const duneFundFlowForAddress = async (
+    address: string,
+    _chain: string,
+    startTimestamp: number,
+    txHash?: string
+  ): Promise<DuneFundFlowRows | null> => {
+    const apiKey = process.env.DUNE_API_KEY;
+    const queryIdRaw = process.env.DUNE_FUND_FLOW_QUERY_ID;
+    if (!apiKey || !queryIdRaw) {
+      return null;
+    }
+
+    const queryId = Number.parseInt(queryIdRaw, 10);
+    if (!Number.isFinite(queryId)) {
+      return null;
+    }
+
+    try {
+      const queryParameters: Record<string, string | number> = {
+        wallet_address: address.toLowerCase(),
+        start_timestamp: startTimestamp,
+        tx_hash: txHash?.trim()?.toLowerCase() || "",
+      };
+
+      const headers = {
+        "X-Dune-API-Key": apiKey,
+        "Content-Type": "application/json",
+      };
+
+      const executeResponse = await axios.post(
+        `${DUNE_BASE_URL}/query/${queryId}/execute`,
+        {
+          query_parameters: queryParameters,
+        },
+        {
+          headers,
+          timeout: 20000,
+        }
+      );
+
+      const executeData = executeResponse.data as Record<string, unknown>;
+      const executionIdRaw = executeData.execution_id;
+      const executionId = typeof executionIdRaw === "string" ? executionIdRaw : "";
+
+      if (!executionId) {
+        return null;
+      }
+
+      let completed = false;
+      for (let attempt = 0; attempt < 15; attempt += 1) {
+        const statusResponse = await axios.get(`${DUNE_BASE_URL}/execution/${executionId}/status`, {
+          headers,
+          timeout: 10000,
+        });
+
+        const statusData = statusResponse.data as Record<string, unknown>;
+        const state = String(statusData.state || "").toUpperCase();
+
+        if (state.includes("COMPLETED")) {
+          completed = true;
+          break;
+        }
+
+        if (state.includes("FAILED") || state.includes("CANCELLED") || state.includes("EXPIRED")) {
+          return null;
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, 1200));
+      }
+
+      if (!completed) {
+        return null;
+      }
+
+      const response = await axios.get(`${DUNE_BASE_URL}/execution/${executionId}/results`, {
+        headers,
+        timeout: 20000,
+      });
+
+      const data = response.data as Record<string, unknown>;
+      const result = data.result;
+      if (!result || typeof result !== "object" || Array.isArray(result)) {
+        return null;
+      }
+
+      const rowsRaw = (result as Record<string, unknown>).rows;
+      if (!Array.isArray(rowsRaw)) {
+        return null;
+      }
+
+      const rows = rowsRaw.filter(
+        (item): item is Record<string, unknown> => Boolean(item && typeof item === "object" && !Array.isArray(item))
+      );
+
+      return { queryId: String(queryId), rows };
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        const status = error.response?.status;
+        const duneError = error.response?.data;
+        if (status === 429) {
+          console.warn("Dune fund-flow query rate limited");
+        } else if (status === 401 || status === 403) {
+          console.warn("Dune auth failed for fund-flow; verify DUNE_API_KEY");
+        } else if (status === 400) {
+          console.warn("Dune fund-flow query rejected (400). Verify query parameter names/types in Dune.", duneError);
+        } else {
+          console.warn(`Dune fund-flow query failed: ${error.message}`, duneError);
+        }
+      }
+      return null;
+    }
+  };
 
 // CoinGecko price/history (legacy)
 export const coingeckoPriceHistory = async (tokenId: string, days: number = 30) => {
@@ -1895,7 +2194,12 @@ export const buildWalletProfile = async (address: string, chain: string) => {
   };
 };
 
-const TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55aeb";
+const TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
+const TOKEN_LOG_WINDOW_CACHE_TTL_MS = 5 * 60 * 1000;
+const DEFAULT_LOG_WINDOW_SIZE = 2000;
+const ALCHEMY_FREE_TIER_LOG_WINDOW_SIZE = 10;
+
+const tokenLogWindowCache = new Map<string, { rows: Record<string, unknown>[]; timestamp: number }>();
 
 const topicToAddress = (topic: string): string => {
   if (typeof topic !== "string" || !topic.startsWith("0x") || topic.length < 42) {
@@ -1906,6 +2210,73 @@ const topicToAddress = (topic: string): string => {
 
 const toHexBlock = (value: number): string => {
   return `0x${Math.max(0, Math.floor(value)).toString(16)}`;
+};
+
+const getTokenLogWindowCacheKey = (
+  chain: string,
+  tokenAddress: string,
+  fromBlock: number,
+  toBlock: number
+): string => {
+  return `${chain}:${tokenAddress}:${fromBlock}:${toBlock}`;
+};
+
+const getLogWindowSize = (chain: string): number => {
+  const rpcUrl = getRpcUrl(chain) || "";
+  if (/alchemy\.com/i.test(rpcUrl)) {
+    return ALCHEMY_FREE_TIER_LOG_WINDOW_SIZE;
+  }
+  return DEFAULT_LOG_WINDOW_SIZE;
+};
+
+const fetchTransferLogsBatched = async (
+  chain: string,
+  tokenAddress: string,
+  fromBlock: number,
+  toBlock: number
+): Promise<Record<string, unknown>[]> => {
+  const windowSize = Math.max(1, getLogWindowSize(chain));
+  const mergedRows: Record<string, unknown>[] = [];
+  let cacheHits = 0;
+  let rpcCalls = 0;
+
+  for (let start = fromBlock; start <= toBlock; start += windowSize) {
+    const end = Math.min(toBlock, start + windowSize - 1);
+    const cacheKey = getTokenLogWindowCacheKey(chain, tokenAddress, start, end);
+    const cached = tokenLogWindowCache.get(cacheKey);
+
+    if (cached && Date.now() - cached.timestamp <= TOKEN_LOG_WINDOW_CACHE_TTL_MS) {
+      cacheHits += 1;
+      mergedRows.push(...cached.rows);
+      continue;
+    }
+
+    rpcCalls += 1;
+    const logs = await rpcCall(chain, "eth_getLogs", [
+      {
+        address: tokenAddress,
+        fromBlock: toHexBlock(start),
+        toBlock: toHexBlock(end),
+        topics: [TRANSFER_TOPIC],
+      },
+    ]);
+
+    const rows = Array.isArray(logs)
+      ? logs.filter((item): item is Record<string, unknown> => Boolean(item && typeof item === "object"))
+      : [];
+
+    tokenLogWindowCache.set(cacheKey, {
+      rows,
+      timestamp: Date.now(),
+    });
+    mergedRows.push(...rows);
+  }
+
+  console.info(
+    `[token-movement] batched logs ${chain} ${tokenAddress.slice(0, 10)}... windowsize=${windowSize} rpcCalls=${rpcCalls} cacheHits=${cacheHits} rows=${mergedRows.length}`
+  );
+
+  return mergedRows;
 };
 
 const toBigIntSafe = (value: unknown): bigint => {
@@ -1949,18 +2320,7 @@ export const analyzeTokenMovement = async (
 
   const fromBlock = Math.max(0, latestBlock - Math.max(500, Math.min(20000, lookbackBlocks)));
 
-  const logs = await rpcCall(chain, "eth_getLogs", [
-    {
-      address: normalizedToken,
-      fromBlock: toHexBlock(fromBlock),
-      toBlock: toHexBlock(latestBlock),
-      topics: [TRANSFER_TOPIC],
-    },
-  ]);
-
-  const rows = Array.isArray(logs)
-    ? logs.filter((item): item is Record<string, unknown> => Boolean(item && typeof item === "object"))
-    : [];
+  const rows = await fetchTransferLogsBatched(chain, normalizedToken, fromBlock, latestBlock);
 
   const holders = new Set<string>();
   const senders = new Set<string>();

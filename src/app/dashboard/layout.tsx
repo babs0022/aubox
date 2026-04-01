@@ -1,13 +1,16 @@
-import Link from "next/link";
 import { getUserFromSession } from "@/lib/auth";
+import { isAdminEmail } from "@/lib/admins";
+import { getUserById } from "@/lib/azure";
 import SidebarNav from "@/components/dashboard/SidebarNav";
-import LogoutButton from "@/components/dashboard/LogoutButton";
+import UserMenu from "@/components/dashboard/UserMenu";
 import CollapsibleSidebar from "@/components/dashboard/CollapsibleSidebar";
 import HeaderCaseSwitcher from "@/components/dashboard/HeaderCaseSwitcher";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const user = await getUserFromSession();
+  const fullUser = user?.sub ? await getUserById(user.sub) : null;
   const displayName = user?.username || user?.name || user?.email || "investigator";
+  const isAdmin = isAdminEmail(user?.email);
   const initials = displayName
     .split(" ")
     .map((part) => part[0])
@@ -16,31 +19,19 @@ export default async function DashboardLayout({ children }: { children: React.Re
     .toUpperCase();
 
   return (
-    <main className="flex min-h-screen w-full overflow-hidden">
+    <main className="dashboard-shell flex h-screen w-full overflow-hidden">
       <CollapsibleSidebar>
         <SidebarNav />
       </CollapsibleSidebar>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="border-b border-[var(--line)] bg-[var(--paper)] px-4 py-4 sm:px-6">
+        <header className="dash-frame border-l-0 border-r-0 border-t-0 px-4 py-4 sm:px-6">
           <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
             <div className="flex items-start gap-4">
               <HeaderCaseSwitcher />
             </div>
             <div className="flex items-center gap-2">
-              <Link
-                href="/dashboard/profile"
-                className="flex items-center gap-3 rounded-xl border border-[var(--line)] bg-white px-3 py-2 hover:border-[var(--accent)]"
-              >
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--accent)] text-sm font-bold text-white">
-                  {initials || "U"}
-                </div>
-                <div className="text-right">
-                  <p className="text-xs text-[var(--muted)]">Signed in as</p>
-                  <p className="text-sm font-semibold text-[var(--ink)]">@{displayName}</p>
-                </div>
-              </Link>
-              <LogoutButton />
+              <UserMenu displayName={displayName} initials={initials} isAdmin={isAdmin} profileIcon={fullUser?.profileIcon} />
             </div>
           </div>
         </header>

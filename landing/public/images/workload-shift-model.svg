@@ -1,0 +1,80 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 320" width="600" height="320">
+  <!-- Background -->
+  <rect width="600" height="320" fill="#1d241b"/>
+  
+  <!-- Dithered background pattern -->
+  <defs>
+    <pattern id="dither" x="0" y="0" width="4" height="4" patternUnits="userSpaceOnUse">
+      <rect width="4" height="4" fill="#2d3428"/>
+      <circle cx="1" cy="1" r="0.5" fill="#5f6759"/>
+      <circle cx="3" cy="3" r="0.5" fill="#5f6759"/>
+    </pattern>
+    <filter id="softGlow">
+      <feGaussianBlur stdDeviation="0.5"/>
+    </filter>
+  </defs>
+  
+  <rect width="600" height="320" fill="url(#dither)" filter="url(#softGlow)"/>
+  
+  <!-- Step indicators -->
+  <g font-family="'Roboto Mono', monospace" font-size="12" fill="#0d5f53" font-weight="600" letter-spacing="1">
+    <text x="30" y="60" text-anchor="start">1. Ingest</text>
+    <text x="170" y="60" text-anchor="start">2. Map</text>
+    <text x="310" y="60" text-anchor="start">3. Prioritize</text>
+    <text x="450" y="60" text-anchor="start">4. Export</text>
+  </g>
+  
+  <!-- Flow visualization with dithering -->
+  <g stroke="#0d5f53" stroke-width="1.5" fill="none" opacity="0.6">
+    <!-- Wallet/Entity input -->
+    <rect x="20" y="100" width="60" height="50" fill="none" stroke="#0d5f53" stroke-dasharray="2,2"/>
+    <text x="50" y="140" font-family="monospace" font-size="10" fill="#0d5f53" text-anchor="middle">Wallet</text>
+    
+    <!-- Arrow -->
+    <path d="M 85 125 L 115 125" stroke="#0d5f53" stroke-width="2"/>
+    <polygon points="115,125 110,120 110,130" fill="#0d5f53"/>
+    
+    <!-- Auto-map nodes -->
+    <circle cx="145" cy="110" r="8" fill="none" stroke="#0d5f53" stroke-width="1.5"/>
+    <circle cx="155" cy="135" r="8" fill="none" stroke="#0d5f53" stroke-width="1.5"/>
+    <circle cx="170" cy="120" r="8" fill="none" stroke="#0d5f53" stroke-width="1.5"/>
+    <line x1="145" y1="110" x2="155" y2="135" stroke="#0d5f53" stroke-width="1" opacity="0.5"/>
+    <line x1="155" y1="135" x2="170" y2="120" stroke="#0d5f53" stroke-width="1" opacity="0.5"/>
+    
+    <!-- Arrow -->
+    <path d="M 185 125 L 215 125" stroke="#0d5f53" stroke-width="2"/>
+    <polygon points="215,125 210,120 210,130" fill="#0d5f53"/>
+    
+    <!-- Review/priority -->
+    <rect x="225" y="100" width="60" height="50" fill="none" stroke="#0d5f53" stroke-width="1.5"/>
+    <text x="255" y="140" font-family="monospace" font-size="9" fill="#0d5f53" text-anchor="middle">Review</text>
+    
+    <!-- Arrow -->
+    <path d="M 290 125 L 320 125" stroke="#0d5f53" stroke-width="2"/>
+    <polygon points="320,125 315,120 315,130" fill="#0d5f53"/>
+    
+    <!-- Output report -->
+    <polygon points="330,100 390,125 330,150" fill="none" stroke="#0d5f53" stroke-width="1.5"/>
+    <text x="360" y="130" font-family="monospace" font-size="9" fill="#0d5f53" text-anchor="middle">Report</text>
+  </g>
+  
+  <!-- Investigation-themed dithering overlay -->
+  <g opacity="0.15">
+    <rect x="0" y="180" width="600" height="140" fill="url(#dither)"/>
+  </g>
+  
+  <!-- Decorative grid pattern (forensic evidence theme) -->
+  <g stroke="#0d5f53" stroke-width="0.5" opacity="0.2">
+    <line x1="0" y1="200" x2="600" y2="200"/>
+    <line x1="0" y1="220" x2="600" y2="220"/>
+    <line x1="0" y1="240" x2="600" y2="240"/>
+    <line x1="0" y1="260" x2="600" y2="260"/>
+    <line x1="0" y1="280" x2="600" y2="280"/>
+    
+    <line x1="100" y1="200" x2="100" y2="320"/>
+    <line x1="200" y1="200" x2="200" y2="320"/>
+    <line x1="300" y1="200" x2="300" y2="320"/>
+    <line x1="400" y1="200" x2="400" y2="320"/>
+    <line x1="500" y1="200" x2="500" y2="320"/>
+  </g>
+</svg>

@@ -58,6 +58,21 @@ const humanizeHex = (value: string): string => {
 
 const isEvmAddress = (value: string): boolean => /^0x[a-fA-F0-9]{40}$/.test(value);
 
+const EXPLORER_BASE_BY_CHAIN: Record<string, string> = {
+  ethereum: "https://etherscan.io",
+  bsc: "https://bscscan.com",
+  base: "https://basescan.org",
+  arbitrum: "https://arbiscan.io",
+};
+
+const getAddressExplorerUrl = (chain: string, address: string): string | null => {
+  const base = EXPLORER_BASE_BY_CHAIN[chain.toLowerCase()];
+  if (!base || !isEvmAddress(address)) {
+    return null;
+  }
+  return `${base}/address/${address}`;
+};
+
 export default function TokenMovementPage() {
   const activeCaseIdHook = useActiveCaseId();
   const activeCaseId = activeCaseIdHook || getActiveCaseId();
@@ -247,7 +262,21 @@ export default function TokenMovementPage() {
           <div className="rounded-xl border border-[var(--line)] bg-white p-4">
             <p className="text-xs uppercase tracking-[0.1em] text-[var(--muted)]">Token Summary</p>
             <p className="mt-1 text-sm text-[var(--ink)]">
-              {shortenAddress(result.intel.tokenAddress)} on {result.intel.chain} sampled from block {humanizeHex(result.intel.sampledFromBlock)} to {humanizeHex(result.intel.sampledToBlock)}.
+              {(() => {
+                const tokenUrl = getAddressExplorerUrl(result.intel.chain, result.intel.tokenAddress);
+                return tokenUrl ? (
+                  <>
+                    <a href={tokenUrl} target="_blank" rel="noreferrer" className="onchain-link" title={result.intel.tokenAddress}>
+                      {shortenAddress(result.intel.tokenAddress)}
+                    </a>{" "}
+                    on {result.intel.chain} sampled from block {humanizeHex(result.intel.sampledFromBlock)} to {humanizeHex(result.intel.sampledToBlock)}.
+                  </>
+                ) : (
+                  <>
+                    {shortenAddress(result.intel.tokenAddress)} on {result.intel.chain} sampled from block {humanizeHex(result.intel.sampledFromBlock)} to {humanizeHex(result.intel.sampledToBlock)}.
+                  </>
+                );
+              })()}
             </p>
           </div>
 
@@ -292,7 +321,18 @@ export default function TokenMovementPage() {
           {hasWalletContext && result.intel.walletRelation ? (
             <div className="rounded-xl border border-[var(--line)] bg-white p-4">
               <p className="text-xs uppercase tracking-[0.1em] text-[var(--muted)]">Wallet Relation To Token</p>
-              <p className="mt-1 text-sm text-[var(--ink)]">{shortenAddress(result.intel.walletRelation.wallet)}</p>
+              <p className="mt-1 text-sm text-[var(--ink)]">
+                {(() => {
+                  const walletUrl = getAddressExplorerUrl(result.intel.chain, result.intel.walletRelation.wallet);
+                  return walletUrl ? (
+                    <a href={walletUrl} target="_blank" rel="noreferrer" className="onchain-link" title={result.intel.walletRelation?.wallet}>
+                      {shortenAddress(result.intel.walletRelation.wallet)}
+                    </a>
+                  ) : (
+                    shortenAddress(result.intel.walletRelation.wallet)
+                  );
+                })()}
+              </p>
               <div className="mt-3 grid gap-3 sm:grid-cols-3">
                 <div className="rounded-lg border border-[var(--line)] bg-[var(--paper)] p-3">
                   <p className="text-xs text-[var(--muted)]">Inbound Transfers</p>
@@ -316,7 +356,18 @@ export default function TokenMovementPage() {
               {result.intel.topCounterparties.length > 0 ? (
                 result.intel.topCounterparties.map((row) => (
                   <div key={row.address} className="flex items-center justify-between rounded-lg border border-[var(--line)] bg-[var(--paper)] p-2">
-                    <p className="font-mono text-xs text-[var(--ink)]">{shortenAddress(row.address)}</p>
+                    <p className="font-mono text-xs text-[var(--ink)]">
+                      {(() => {
+                        const counterpartyUrl = getAddressExplorerUrl(result.intel?.chain || chain, row.address);
+                        return counterpartyUrl ? (
+                          <a href={counterpartyUrl} target="_blank" rel="noreferrer" className="onchain-link" title={row.address}>
+                            {shortenAddress(row.address)}
+                          </a>
+                        ) : (
+                          shortenAddress(row.address)
+                        );
+                      })()}
+                    </p>
                     <p className="text-xs font-semibold text-[var(--muted)]">{row.interactions} interaction(s)</p>
                   </div>
                 ))

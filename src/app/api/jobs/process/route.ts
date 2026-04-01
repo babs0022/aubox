@@ -107,7 +107,7 @@ async function processClusterJob(payload: JobPayload) {
   };
 }
 
-export async function POST(request: NextRequest) {
+export async function POST() {
   try {
 
     const connectionString = process.env.AZURE_SERVICE_BUS_CONNECTION_STRING;
@@ -244,7 +244,14 @@ export async function GET(request: NextRequest) {
         ? (["profile", "trace", "cluster"] as const)
         : ([queue as "profile" | "trace" | "cluster"] as const);
 
-    const results: Record<string, unknown> = {};
+    type QueueRunResult = {
+      queueName: string;
+      requested: number;
+      processed: number;
+      jobs: Array<Record<string, unknown>>;
+    };
+
+    const results: Record<string, QueueRunResult> = {};
 
     for (const jobType of queueNames) {
       const queueName = getQueueName(jobType);
@@ -269,7 +276,7 @@ export async function GET(request: NextRequest) {
               typeof message.body === "string" ? message.body : JSON.stringify(message.body)
             );
 
-            (results[jobType] as any).processed++;
+            results[jobType].processed++;
 
             console.log(`[${jobType}] Processing job`, payload);
 
@@ -286,7 +293,7 @@ export async function GET(request: NextRequest) {
                 break;
             }
 
-            (results[jobType] as any).jobs.push({
+            results[jobType].jobs.push({
               payload,
               result: jobResult,
               status: "completed",
@@ -294,7 +301,7 @@ export async function GET(request: NextRequest) {
 
             await receiver.completeMessage(message);
           } catch (error) {
-            (results[jobType] as any).jobs.push({
+            results[jobType].jobs.push({
               error: error instanceof Error ? error.message : "Unknown error",
               status: "failed",
             });

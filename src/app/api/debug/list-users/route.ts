@@ -1,8 +1,15 @@
 import { NextResponse } from "next/server";
 import { TableClient } from "@azure/data-tables";
+import { getUserFromSession } from "@/lib/auth";
+import { isAdminEmail } from "@/lib/admins";
 
 export async function GET() {
   try {
+    const actor = await getUserFromSession();
+    if (!actor?.email || !isAdminEmail(actor.email)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     const connectionString = process.env.AZURE_STORAGE_CONNECTION_STRING;
     if (!connectionString) {
       return NextResponse.json({ error: "Connection string not configured" }, { status: 500 });

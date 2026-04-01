@@ -193,7 +193,6 @@ export const summarizeTimeline = (timeline: TimelineEvent[]): Record<string, unk
     summary.timelineSpan = `${new Date(oldest.timestamp).toLocaleDateString()} to ${new Date(newest.timestamp).toLocaleDateString()}`;
   }
 
-  let seen = new Set<string>();
   for (const event of timeline) {
     (summary.featuresUsed as Set<string>).add(event.feature);
     for (const entity of event.entities) {

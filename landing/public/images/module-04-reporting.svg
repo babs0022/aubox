@@ -1,0 +1,98 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 400" width="500" height="400">
+  <!-- Background -->
+  <rect width="500" height="400" fill="#1d241b"/>
+  
+  <!-- Dithering pattern -->
+  <defs>
+    <pattern id="dither4" x="0" y="0" width="3" height="3" patternUnits="userSpaceOnUse">
+      <rect width="3" height="3" fill="#2d3428"/>
+      <circle cx="1.3" cy="1.3" r="0.6" fill="#0d5f53" opacity="0.4"/>
+      <circle cx="2.7" cy="0.7" r="0.4" fill="#5f6759" opacity="0.3"/>
+    </pattern>
+  </defs>
+  
+  <rect width="500" height="400" fill="url(#dither4)"/>
+  
+  <!-- Title -->
+  <text x="250" y="40" font-family="'Roboto Mono', monospace" font-size="16" font-weight="600" fill="#0d5f53" text-anchor="middle" letter-spacing="1">CASE-READY REPORTS</text>
+  
+  <!-- Report building visualization -->
+  <g stroke="#0d5f53" stroke-width="1.5" fill="none">
+    <!-- Investigation data input -->
+    <g opacity="0.7">
+      <rect x="40" y="100" width="80" height="50" stroke="#0d5f53"/>
+      <text x="80" y="130" font-family="monospace" font-size="9" fill="#0d5f53" text-anchor="middle">Investigation</text>
+      <text x="80" y="143" font-family="monospace" font-size="9" fill="#0d5f53" text-anchor="middle">Data</text>
+    </g>
+    
+    <!-- Extraction -->
+    <path d="M 120 125 L 160 125" stroke="#0d5f53" stroke-width="2"/>
+    <polygon points="160,125 150,120 150,130" fill="#0d5f53"/>
+    
+    <!-- Compilation -->
+    <g opacity="0.7">
+      <rect x="170" y="100" width="80" height="50" stroke="#0d5f53"/>
+      <text x="210" y="130" font-family="monospace" font-size="9" fill="#0d5f53" text-anchor="middle">Compilation</text>
+    </g>
+    
+    <!-- Arrow -->
+    <path d="M 250 125 L 290 125" stroke="#0d5f53" stroke-width="2"/>
+    <polygon points="290,125 280,120 280,130" fill="#0d5f53"/>
+    
+    <!-- Formatting -->
+    <g opacity="0.7">
+      <rect x="300" y="100" width="80" height="50" stroke="#0d5f53"/>
+      <text x="340" y="130" font-family="monospace" font-size="9" fill="#0d5f53" text-anchor="middle">Formatting</text>
+    </g>
+    
+    <!-- Report document (center) -->
+    <g>
+      <rect x="120" y="200" width="260" height="140" stroke="#0d5f53" stroke-width="2"/>
+      
+      <!-- Document header -->
+      <line x1="120" y1="225" x2="380" y2="225" stroke="#0d5f53" stroke-width="1"/>
+      <text x="250" y="217" font-family="monospace" font-size="11" fill="#0d5f53" text-anchor="middle" font-weight="600">Evidence Package</text>
+      
+      <!-- Content lines (simulating report structure) -->
+      <line x1="135" y1="240" x2="365" y2="240" stroke="#0d5f53" stroke-width="0.8" opacity="0.6"/>
+      <line x1="135" y1="255" x2="365" y2="255" stroke="#0d5f53" stroke-width="0.8" opacity="0.6"/>
+      <line x1="135" y1="270" x2="240" y2="270" stroke="#0d5f53" stroke-width="0.8" opacity="0.6"/>
+      
+      <!-- Table/grid pattern -->
+      <rect x="135" y="280" width="230" height="50" fill="none" stroke="#0d5f53" stroke-width="0.8" opacity="0.5"/>
+      <line x1="170" y1="280" x2="170" y2="330" stroke="#0d5f53" stroke-width="0.5" opacity="0.4"/>
+      <line x1="205" y1="280" x2="205" y2="330" stroke="#0d5f53" stroke-width="0.5" opacity="0.4"/>
+      <line x1="240" y1="280" x2="240" y2="330" stroke="#0d5f53" stroke-width="0.5" opacity="0.4"/>
+      <line x1="275" y1="280" x2="275" y2="330" stroke="#0d5f53" stroke-width="0.5" opacity="0.4"/>
+      <line x1="310" y1="280" x2="310" y2="330" stroke="#0d5f53" stroke-width="0.5" opacity="0.4"/>
+      <line x1="135" y1="297" x2="365" y2="297" stroke="#0d5f53" stroke-width="0.5" opacity="0.4"/>
+      <line x1="135" y1="314" x2="365" y2="314" stroke="#0d5f53" stroke-width="0.5" opacity="0.4"/>
+    </g>
+    
+    <!-- Export arrows -->
+    <g opacity="0.7">
+      <path d="M 180 340 L 100 370" stroke="#0d5f53" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+      <path d="M 250 340 L 250 370" stroke="#0d5f53" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+      <path d="M 320 340 L 400 370" stroke="#0d5f53" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+    </g>
+    
+    <!-- Output formats -->
+    <g opacity="0.6" font-family="monospace" font-size="9" fill="#0d5f53">
+      <text x="65" y="385" text-anchor="middle">PDF</text>
+      <text x="250" y="385" text-anchor="middle">JSON</text>
+      <text x="435" y="385" text-anchor="middle">CSV</text>
+    </g>
+  </g>
+  
+  <!-- Dithering accent -->
+  <g opacity="0.1">
+    <rect x="0" y="360" width="500" height="40" fill="url(#dither4)"/>
+  </g>
+  
+  <!-- Arrow marker -->
+  <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="5" refY="5" orient="auto">
+      <polygon points="0 0, 10 5, 0 10" fill="#0d5f53"/>
+    </marker>
+  </defs>
+</svg>

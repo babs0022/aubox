@@ -27,25 +27,15 @@ const workflow = [
       "Run targeted social queries across entities, tags, hashtags, tickers, usernames, and user focus. Review diagnostics and save terms as artifacts.",
   },
   {
-    title: "6. Build Timeline",
+    title: "6. Fund Flow Analysis",
     detail:
-      "Aggregate saved case events into a chronological timeline with entities, risk indicators, and feature usage summaries.",
-  },
-  {
-    title: "7. Evidence Graph",
-    detail:
-      "Convert case event nodes and edges into a connected visual map for relationship analysis and presentation.",
-  },
-  {
-    title: "8. Generate Report",
-    detail:
-      "Create and export report markdown manually, or auto-build a case report pack with summary and Mermaid graph.",
+      "Trace stolen funds end-to-end across chains, bridges, exchanges, DEX routes, and settlement wallets using an interactive graph.",
   },
 ];
 
 const featureBreakdown = [
   {
-    route: "/dashboard/cases",
+    route: "/cases",
     feature: "Cases",
     purpose: "Create, select, and delete investigations.",
     howTo: [
@@ -57,7 +47,7 @@ const featureBreakdown = [
     exampleOutput: "A new case card appears, is selectable, and can be marked active for all tools.",
   },
   {
-    route: "/dashboard/cases/{caseId}/profile-address",
+    route: "/cases/{caseId}/profile-address",
     feature: "Profile Address",
     purpose: "Build a high-signal dossier for a target wallet or entity.",
     howTo: [
@@ -70,7 +60,7 @@ const featureBreakdown = [
     exampleOutput: "You see risk score, label count, transactions, balance, source coverage bars, and attributed labels.",
   },
   {
-    route: "/dashboard/cases/{caseId}/trace-funds",
+    route: "/cases/{caseId}/trace-funds",
     feature: "Trace Funds",
     purpose: "Investigate movement paths across hops and directions.",
     howTo: [
@@ -84,7 +74,7 @@ const featureBreakdown = [
     exampleOutput: "You get a trace result panel with hops, explorer links, and expandable enriched details per hop.",
   },
   {
-    route: "/dashboard/cases/{caseId}/cluster-entities",
+    route: "/cases/{caseId}/cluster-entities",
     feature: "Cluster Entities",
     purpose: "Identify likely ownership or operational linkage patterns.",
     howTo: [
@@ -98,7 +88,7 @@ const featureBreakdown = [
     exampleOutput: "Cluster cards appear with confidence bands, supporting evidence, and linked addresses.",
   },
   {
-    route: "/dashboard/cases/{caseId}/social-investigation",
+    route: "/cases/{caseId}/social-investigation",
     feature: "Social Investigation",
     purpose: "Search social posts and convert discovered terms to reusable case artifacts.",
     howTo: [
@@ -112,7 +102,7 @@ const featureBreakdown = [
     exampleOutput: "You see compiled query text, post count, result cards, and diagnostics with request attempts.",
   },
   {
-    route: "/dashboard/cases/{caseId}/artifacts",
+    route: "/cases/{caseId}/artifacts",
     feature: "Artifact Manager",
     purpose: "Review, add, rename, search, and delete case intelligence tokens.",
     howTo: [
@@ -125,45 +115,20 @@ const featureBreakdown = [
     exampleOutput: "Artifact appears in the list with kind, source, updated time, and inline rename/delete controls.",
   },
   {
-    route: "/dashboard/cases/{caseId}/build-timeline",
-    feature: "Build Timeline",
-    purpose: "Transform discrete findings into a complete case narrative timeline.",
+    route: "/cases/{caseId}/fund-flow",
+    feature: "Fund Flow Analysis",
+    purpose: "Trace stolen funds across entities and protocols until settlement destinations are identified.",
     howTo: [
-      "Load events from the active case.",
-      "Inspect totals, timeline span, risk event count, entities involved, and social signal count.",
-      "Review events newest-first with narrative and risk flags.",
-      "Export timeline markdown at milestones.",
+      "Set wallet address, starting chain, and theft timestamp.",
+      "Optionally include stolen amount and initial theft transaction hash.",
+      "Run analysis to build a graph of entities and fund transfer edges.",
+      "Inspect distribution by protocol type and top destinations to identify likely settlement.",
     ],
-    exampleInput: "Click Refresh Timeline after running at least one investigation tool.",
-    exampleOutput: "Timeline summary tiles and ordered event cards appear, with optional risk flags and Export Markdown button.",
+    exampleInput: "Address: 0x1234...abcd | Chain: all | Theft Date: unix timestamp",
+    exampleOutput: "Interactive graph appears with protocol-labeled nodes, transfer edges, and settlement-focused summary cards.",
   },
   {
-    route: "/dashboard/cases/{caseId}/evidence-graph",
-    feature: "Evidence Graph",
-    purpose: "Visualize relationships between entities, flows, and case events.",
-    howTo: [
-      "Load case events with node and edge payloads.",
-      "Render graph as Mermaid flow chart.",
-      "Review node, edge, and event totals plus latest evidence cards.",
-    ],
-    exampleInput: "Open Evidence Graph after profile, trace, cluster, or social runs have been saved.",
-    exampleOutput: "You see a relationship graph, graph stats, and latest evidence cards from the active case.",
-  },
-  {
-    route: "/dashboard/cases/{caseId}/generate-report",
-    feature: "Generate Report",
-    purpose: "Create a final case deliverable from accumulated evidence.",
-    howTo: [
-      "Either write report fields manually or use Build From Active Case.",
-      "When using case pack, generated summary and graph are loaded automatically.",
-      "Copy markdown to clipboard or download .md file.",
-      "Inspect Mermaid source to audit relationships before sharing.",
-    ],
-    exampleInput: "Click Build From Active Case, then optionally edit title, target, summary, findings, and narrative.",
-    exampleOutput: "Auto-pack markdown and graph preview appear, plus a final report preview you can copy or download.",
-  },
-  {
-    route: "/dashboard/profile",
+    route: "/profile",
     feature: "Profile Settings",
     purpose: "Manage analyst profile fields used in your account session.",
     howTo: [
@@ -179,7 +144,7 @@ const featureBreakdown = [
 
 const artifactRules = [
   "Artifact kinds: address, entity, hashtag, ticker, username, query, note.",
-  "Artifact sourceFeature values: trace, cluster, social, profile, timeline, report, manual.",
+  "Artifact sourceFeature values: trace, cluster, social, profile, fund-flow, manual.",
   "@artifact recall is available in Profile Address and Cluster Entities input flows.",
   "Artifacts are case scoped and never shared across other cases.",
 ];
@@ -187,7 +152,7 @@ const artifactRules = [
 const intelligenceSources = [
   {
     name: "Dune",
-    purpose: "Adds historical query context to bridge and laundering investigations when a Dune bridge query is configured.",
+    purpose: "Adds historical transfer context for fund-flow and laundering investigations when Dune query access is configured.",
   },
   {
     name: "DefiLlama",
@@ -206,8 +171,8 @@ const intelligenceSources = [
 export default function GuidePage() {
   return (
     <main className="min-h-screen w-full px-4 py-8 sm:px-8 sm:py-10">
-      <section className="rounded-3xl border border-[var(--line)] bg-[var(--paper)] p-6 shadow-[0_12px_28px_rgba(0,0,0,0.08)] sm:p-8">
-        <p className="font-mono text-xs uppercase tracking-[0.18em] text-[var(--muted)]">Aubox User Guide</p>
+      <section className="dash-frame p-6 shadow-[0_12px_28px_rgba(0,0,0,0.08)] sm:p-8">
+        <p className="dash-kicker">Aubox User Guide</p>
         <h1 className="mt-3 text-3xl font-bold text-[var(--ink)] sm:text-5xl">Complete Investigation Operator Guide</h1>
         <p className="mt-4 max-w-4xl text-sm leading-6 text-[var(--muted)] sm:text-base">
           This page is a complete operating reference for the Aubox app. It documents every major tool, what each
@@ -216,27 +181,27 @@ export default function GuidePage() {
 
         <div className="mt-6 flex flex-wrap gap-3">
           <Link
-            href="/dashboard"
-            className="rounded-xl border border-[var(--accent-strong)] bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--accent-strong)]"
+            href="/"
+            className="border border-[var(--accent-strong)] bg-[var(--accent)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.08em] text-white hover:bg-[var(--accent-strong)]"
           >
             Open Dashboard
           </Link>
           <Link
             href="/login"
-            className="rounded-xl border border-[var(--line)] bg-white px-4 py-2 text-sm font-semibold hover:border-[var(--accent)]"
+            className="dash-frame-soft px-4 py-2 text-xs font-semibold uppercase tracking-[0.08em] hover:border-[var(--accent)]"
           >
             Log In
           </Link>
           <Link
             href="/signup"
-            className="rounded-xl border border-[var(--line)] bg-white px-4 py-2 text-sm font-semibold hover:border-[var(--accent)]"
+            className="dash-frame-soft px-4 py-2 text-xs font-semibold uppercase tracking-[0.08em] hover:border-[var(--accent)]"
           >
             Create Account
           </Link>
         </div>
       </section>
 
-      <section className="mt-6 rounded-3xl border border-[var(--line)] bg-white p-6 sm:p-8">
+      <section className="dash-frame mt-6 p-6 sm:p-8">
         <h2 className="text-2xl font-bold">End-To-End Workflow</h2>
         <div className="mt-4 grid gap-3">
           {workflow.map((step) => (
@@ -248,7 +213,7 @@ export default function GuidePage() {
         </div>
       </section>
 
-      <section className="mt-6 rounded-3xl border border-[var(--line)] bg-white p-6 sm:p-8">
+      <section className="dash-frame mt-6 p-6 sm:p-8">
         <h2 className="text-2xl font-bold">Feature Operating Manual</h2>
         <div className="mt-4 space-y-4">
           {featureBreakdown.map((item) => (
@@ -284,7 +249,7 @@ export default function GuidePage() {
       </section>
 
       <section className="mt-6 grid gap-4 lg:grid-cols-2">
-        <div className="rounded-3xl border border-[var(--line)] bg-white p-6">
+        <div className="dash-frame p-6">
           <h2 className="text-xl font-bold">Artifact Recall Rules</h2>
           <ul className="mt-3 space-y-2 text-sm text-[var(--muted)]">
             {artifactRules.map((rule) => (
@@ -292,7 +257,7 @@ export default function GuidePage() {
             ))}
           </ul>
         </div>
-        <div className="rounded-3xl border border-[var(--line)] bg-white p-6">
+        <div className="dash-frame p-6">
           <h2 className="text-xl font-bold">Intelligence Sources</h2>
           <div className="mt-3 space-y-2">
             {intelligenceSources.map((source) => (
@@ -305,7 +270,7 @@ export default function GuidePage() {
         </div>
       </section>
 
-      <section className="mt-6 rounded-3xl border border-[var(--line)] bg-white p-6 sm:p-8">
+      <section className="dash-frame mt-6 p-6 sm:p-8">
         <h2 className="text-2xl font-bold">Operational Best Practices</h2>
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           <div className="rounded-xl border border-[var(--line)] bg-[var(--paper)] p-4">
@@ -314,7 +279,7 @@ export default function GuidePage() {
           </div>
           <div className="rounded-xl border border-[var(--line)] bg-[var(--paper)] p-4">
             <p className="font-semibold">Persist Evidence Early</p>
-            <p className="mt-1 text-sm text-[var(--muted)]">Use profile, trace, cluster, and social tools to generate events before timeline or graph review.</p>
+            <p className="mt-1 text-sm text-[var(--muted)]">Run profile, trace, cluster, social, and fund-flow analysis early so cross-signal validation happens before conclusions.</p>
           </div>
           <div className="rounded-xl border border-[var(--line)] bg-[var(--paper)] p-4">
             <p className="font-semibold">Corroborate Across Signals</p>
@@ -322,7 +287,7 @@ export default function GuidePage() {
           </div>
           <div className="rounded-xl border border-[var(--line)] bg-[var(--paper)] p-4">
             <p className="font-semibold">Export Milestones</p>
-            <p className="mt-1 text-sm text-[var(--muted)]">Export timeline and report snapshots at key checkpoints to preserve analyst rationale.</p>
+            <p className="mt-1 text-sm text-[var(--muted)]">Capture key findings from each major analysis pass to preserve analyst rationale and handoff context.</p>
           </div>
         </div>
       </section>

@@ -12,6 +12,17 @@ type ClusterEvidence = {
   weight: number;
   value: number;
   detail: string;
+  proofs?: ClusterProof[];
+};
+
+type ClusterProof = {
+  type: "tx" | "address" | "graph";
+  source: string;
+  label: string;
+  txHash?: string;
+  address?: string;
+  explorerUrl?: string;
+  graphRef?: string;
 };
 
 type ClusterCard = {
@@ -48,6 +59,30 @@ type CaseArtifact = {
   value: string;
   kind: "address" | "entity" | "hashtag" | "ticker" | "username" | "query" | "note";
   sourceFeature: "trace" | "cluster" | "social" | "profile" | "timeline" | "report" | "manual";
+};
+
+const explorerBaseByChain: Record<string, string> = {
+  ethereum: "https://etherscan.io",
+  bsc: "https://bscscan.com",
+  base: "https://basescan.org",
+  arbitrum: "https://arbiscan.io",
+  hyperliquid: "https://hyperevmscan.io",
+};
+
+const explorerTxLink = (chain: string, txHash: string): string | undefined => {
+  const base = explorerBaseByChain[chain.toLowerCase()];
+  if (!base || !/^0x[a-fA-F0-9]{64}$/.test(txHash)) {
+    return undefined;
+  }
+  return `${base}/tx/${txHash}`;
+};
+
+const explorerAddressLink = (chain: string, address: string): string | undefined => {
+  const base = explorerBaseByChain[chain.toLowerCase()];
+  if (!base || !/^0x[a-fA-F0-9]{40}$/.test(address)) {
+    return undefined;
+  }
+  return `${base}/address/${address}`;
 };
 
 export default function ClusterEntitiesPage() {
@@ -109,6 +144,189 @@ export default function ClusterEntitiesPage() {
     result?.clusters && result.clusters.length
       ? Math.round(result.clusters.reduce((sum, item) => sum + item.confidence, 0) / result.clusters.length)
       : 0;
+
+  const clusterDisplayLabel = (label: string, index: number) => {
+    const normalized = label.trim().toLowerCase();
+    if (normalized.startsWith("likely_entity_")) {
+      return `Linked Wallet Group ${index + 1}`;
+    }
+    return label.replace(/_/g, " ");
+  };
+
+  const confidenceNarrative = (value: number, band: "low" | "medium" | "high") => {
+    if (band === "high") {
+      return `${value} (${band}) - strong linkage signal`;
+    }
+    if (band === "medium") {
+      return `${value} (${band}) - moderate linkage signal`;
+    }
+    return `${value} (${band}) - preliminary linkage signal`;
+  };
+
+  const evidenceHeadline = (item: ClusterEvidence) => {
+    if (item.code === "counterpartyOverlap") {
+      return `Both wallets repeatedly interact with the same outside wallets (${item.value} shared links).`;
+    }
+    if (item.code === "syncBehavior") {
+      return `Both wallets move through a similar wallet network pattern (${item.value} shared neighbors).`;
+    }
+    if (item.code === "directTransfers") {
+      return "The wallets transact directly with each other.";
+    }
+    if (item.code === "arkhamCluster") {
+      return "External intelligence indicates overlap in entity context.";
+    }
+    return item.detail;
+  };
+
+  const proofSourceLabel = (source: string) => {
+    if (source === "counterparties") return "Onchain Link Evidence";
+    if (source === "transfers") return "Onchain Transaction Evidence";
+    if (source === "arkham") return "External Intelligence Evidence";
+    return source;
+  };
+
+  const compactHash = (hash: string) => `${hash.slice(0, 10)}...${hash.slice(-8)}`;
+
+  const proofHref = (proof: ClusterProof) => {
+    if (proof.explorerUrl) {
+      return proof.explorerUrl;
+    }
+    if (proof.txHash) {
+      return explorerTxLink(chain, proof.txHash);
+    }
+    if (proof.address) {
+      return explorerAddressLink(chain, proof.address);
+    }
+    return undefined;
+  };
+
+  const buildProofPackJson = () => {
+    if (!result) {
+      return null;
+    }
+
+    return {
+      generatedAt: new Date().toISOString(),
+      feature: "cluster-entities",
+      chain,
+      strictness: result.strictness || strictness,
+      timeWindow: result.timeWindow || timeWindow,
+      thresholds: result.thresholds || null,
+      summary: {
+        clustersFound: clusterCount,
+        linkedAddresses: linkedAddressCount,
+        largestCluster,
+        avgConfidence,
+      },
+      clusters: (result.clusters || []).map((cluster) => ({
+        label: cluster.label,
+        confidence: cluster.confidence,
+        confidenceBand: cluster.confidenceBand,
+        addresses: cluster.addresses,
+        evidence: cluster.evidence.map((item) => ({
+          code: item.code,
+          label: item.label,
+          weight: item.weight,
+          value: item.value,
+          detail: item.detail,
+          proofs: item.proofs || [],
+        })),
+      })),
+    };
+  };
+
+  const buildProofPackMarkdown = () => {
+    if (!result) {
+      return "";
+    }
+
+    const lines: string[] = [
+      "# Wallet Link Proof Pack",
+      "",
+      `Generated: ${new Date().toISOString()}`,
+      `Chain: ${chain}`,
+      `Strictness: ${result.strictness || strictness}`,
+      `Time Window: ${result.timeWindow || timeWindow}`,
+      "",
+      "## Summary",
+      `- Clusters Found: ${clusterCount}`,
+      `- Linked Addresses: ${linkedAddressCount}`,
+      `- Largest Cluster: ${largestCluster}`,
+      `- Average Confidence: ${avgConfidence}`,
+      "",
+      "## Wallet Link Findings",
+      "",
+    ];
+
+    for (const [clusterIndex, cluster] of (result.clusters || []).entries()) {
+      lines.push(`### ${clusterDisplayLabel(cluster.label, clusterIndex)}`);
+      lines.push(`- Confidence: ${confidenceNarrative(cluster.confidence, cluster.confidenceBand)}`);
+      lines.push(`- Linked Wallets: ${cluster.addresses.length}`);
+      lines.push("");
+      lines.push("#### Wallet Set");
+      for (const address of cluster.addresses) {
+        lines.push(`- ${address}`);
+      }
+      lines.push("");
+      lines.push("#### Why This Link Is Likely");
+
+      for (const item of cluster.evidence) {
+        lines.push(`- ${evidenceHeadline(item)}`);
+        lines.push(`  - Weight: ${item.weight}`);
+        lines.push(`  - Supporting Count: ${item.value}`);
+
+        if (item.proofs && item.proofs.length > 0) {
+          lines.push("  - Verifiable Proof:");
+          for (const proof of item.proofs) {
+            const hashLabel = proof.txHash ? compactHash(proof.txHash) : "";
+            const proofParts = [
+              `[${proofSourceLabel(proof.source)}] ${hashLabel || proof.label}`,
+              proof.txHash ? `tx=${proof.txHash}` : "",
+              proof.address ? `address=${proof.address}` : "",
+              proof.graphRef ? `graph=${proof.graphRef}` : "",
+              proof.explorerUrl ? `url=${proof.explorerUrl}` : "",
+            ].filter((part) => part.length > 0);
+            lines.push(`    - ${proofParts.join(" | ")}`);
+          }
+        }
+      }
+
+      lines.push("");
+    }
+
+    return lines.join("\n");
+  };
+
+  const downloadProofPackJson = () => {
+    const payload = buildProofPackJson();
+    if (!payload) {
+      return;
+    }
+
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `cluster-proof-pack-${Date.now()}.json`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const downloadProofPackMarkdown = () => {
+    const markdown = buildProofPackMarkdown();
+    if (!markdown) {
+      return;
+    }
+
+    const blob = new Blob([markdown], { type: "text/markdown" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `cluster-proof-pack-${Date.now()}.md`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  };
 
   const clusterRelationshipChart = (() => {
     if (!result?.clusters || result.clusters.length === 0) {
@@ -427,8 +645,22 @@ export default function ClusterEntitiesPage() {
           <div className="rounded-xl border border-[var(--line)] bg-white p-4">
             <p className="text-xs uppercase tracking-[0.1em] text-[var(--muted)]">Cluster Summary</p>
             <p className="mt-2 text-sm text-[var(--ink)]">
-              {result.message || "Cluster analysis completed."} Mode: {result.strictness || strictness}, window: {result.timeWindow || timeWindow}.
+              {result.message || "Cluster analysis completed."} Review: {result.strictness || strictness} confidence filter, {result.timeWindow || timeWindow} evidence window.
             </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                onClick={downloadProofPackMarkdown}
+                className="rounded-lg border border-[var(--line)] bg-white px-3 py-1 text-xs font-semibold text-[var(--ink)] hover:bg-[var(--paper)]"
+              >
+                Download Proof Pack (.md)
+              </button>
+              <button
+                onClick={downloadProofPackJson}
+                className="rounded-lg border border-[var(--line)] bg-white px-3 py-1 text-xs font-semibold text-[var(--ink)] hover:bg-[var(--paper)]"
+              >
+                Download Proof Pack (.json)
+              </button>
+            </div>
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -478,10 +710,10 @@ export default function ClusterEntitiesPage() {
                 {result.clusters.map((cluster) => {
                   const width = Math.min(100, cluster.addresses.length * 20);
                   return (
-                    <div key={cluster.label}>
+                      <div key={cluster.label}>
                       <div className="mb-1 flex items-center justify-between text-xs">
-                        <span>{cluster.label}</span>
-                        <span>{cluster.addresses.length} addresses</span>
+                          <span>{clusterDisplayLabel(cluster.label, result.clusters?.indexOf(cluster) || 0)}</span>
+                          <span>{cluster.addresses.length} wallets</span>
                       </div>
                       <div className="h-2 rounded-full bg-[var(--line)]">
                         <div className="h-2 rounded-full bg-[var(--accent)]" style={{ width: `${width}%` }} />
@@ -495,48 +727,81 @@ export default function ClusterEntitiesPage() {
 
           {result.clusters && result.clusters.length > 0 ? (
             <div className="space-y-3">
-              {result.clusters.map((cluster) => (
+              {result.clusters.map((cluster, clusterIndex) => (
                 <div key={cluster.label} className="rounded-xl border border-[var(--line)] bg-white p-4">
                   <div className="flex items-start justify-between gap-4">
                     <div>
-                      <p className="text-xs uppercase tracking-[0.1em] text-[var(--muted)]">Cluster Label</p>
-                      <h3 className="mt-1 text-lg font-semibold text-[var(--ink)]">{cluster.label}</h3>
+                      <p className="text-xs uppercase tracking-[0.1em] text-[var(--muted)]">Finding</p>
+                      <h3 className="mt-1 text-lg font-semibold text-[var(--ink)]">{clusterDisplayLabel(cluster.label, clusterIndex)}</h3>
                     </div>
                     <span className="rounded-full border border-[var(--line)] px-3 py-1 text-xs font-semibold">
-                      {cluster.addresses.length} linked
+                      {cluster.addresses.length} wallets linked
                     </span>
                   </div>
 
                   <div className="mt-3 grid gap-3 sm:grid-cols-3">
                     <div className="rounded-lg border border-[var(--line)] bg-[var(--paper)] p-2 text-xs">
                       <p className="text-[var(--muted)]">Confidence</p>
-                      <p className="mt-1 text-sm font-semibold text-[var(--ink)]">{cluster.confidence} ({cluster.confidenceBand})</p>
+                      <p className="mt-1 text-sm font-semibold text-[var(--ink)]">{confidenceNarrative(cluster.confidence, cluster.confidenceBand)}</p>
                     </div>
                     <div className="rounded-lg border border-[var(--line)] bg-[var(--paper)] p-2 text-xs sm:col-span-2">
-                      <p className="text-[var(--muted)]">Top Evidence</p>
+                      <p className="text-[var(--muted)]">Key Reasons</p>
                       <p className="mt-1 text-sm text-[var(--ink)]">
-                        {cluster.evidence.slice(0, 2).map((item) => `${item.label} (${item.value})`).join("; ") || "No evidence details available."}
+                        {cluster.evidence.slice(0, 2).map((item) => evidenceHeadline(item)).join(" ") || "No evidence details available."}
                       </p>
                     </div>
                   </div>
 
-                  <p className="mt-3 text-xs text-[var(--muted)]">Address Set</p>
+                  <p className="mt-3 text-xs text-[var(--muted)]">Linked Wallets</p>
                   <div className="mt-2 space-y-2">
                     {cluster.addresses.map((addr) => (
                       <p key={addr} className="rounded-lg border border-[var(--line)] bg-[var(--paper)] p-2 font-mono text-xs">
-                        {shortenAddress(addr)}
+                        {explorerAddressLink(chain, addr) ? (
+                          <a href={explorerAddressLink(chain, addr)} target="_blank" rel="noreferrer" className="onchain-link">
+                            {shortenAddress(addr)}
+                          </a>
+                        ) : (
+                          shortenAddress(addr)
+                        )}
                       </p>
                     ))}
                   </div>
 
                   {cluster.evidence.length ? (
                     <div className="mt-3 rounded-lg border border-[var(--line)] bg-[var(--paper)] p-3">
-                      <p className="text-xs uppercase tracking-[0.08em] text-[var(--muted)]">Evidence Details</p>
+                      <p className="text-xs uppercase tracking-[0.08em] text-[var(--muted)]">Why This Link Is Likely</p>
                       <div className="mt-2 space-y-2">
                         {cluster.evidence.map((item) => (
-                          <p key={`${cluster.label}_${item.code}`} className="text-xs text-[var(--ink)]">
-                            <span className="font-semibold">{item.label}:</span> {item.detail}
-                          </p>
+                          <div key={`${cluster.label}_${item.code}`} className="rounded border border-[var(--line)] bg-white p-2">
+                            <p className="text-xs text-[var(--ink)]">
+                              <span className="font-semibold">Finding:</span> {evidenceHeadline(item)}
+                            </p>
+                            <p className="mt-1 text-[11px] text-[var(--muted)]">
+                              Strength weight {item.weight}; supporting count {item.value}
+                            </p>
+                            {item.proofs && item.proofs.length > 0 ? (
+                              <div className="mt-2 space-y-1">
+                                <p className="text-[10px] uppercase tracking-[0.08em] text-[var(--muted)]">Evidence You Can Verify</p>
+                                {item.proofs.slice(0, 6).map((proof, proofIndex) => (
+                                  <p key={`${cluster.label}_${item.code}_${proofIndex}`} className="text-[11px] text-[var(--ink)]">
+                                    <span className="font-semibold">[{proofSourceLabel(proof.source)}]</span> {proofHref(proof) ? (
+                                      <a
+                                        href={proofHref(proof)}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="onchain-link"
+                                      >
+                                        {proof.txHash ? compactHash(proof.txHash) : proof.label}
+                                      </a>
+                                    ) : (
+                                      <span>{proof.txHash ? compactHash(proof.txHash) : proof.label}</span>
+                                    )}
+                                    {proof.graphRef ? <span className="text-[var(--muted)]"> ({proof.graphRef})</span> : null}
+                                  </p>
+                                ))}
+                              </div>
+                            ) : null}
+                          </div>
                         ))}
                       </div>
                     </div>
@@ -549,7 +814,7 @@ export default function ClusterEntitiesPage() {
           {result.clusters && result.clusters.length === 0 ? (
             <div className="rounded-xl border border-[var(--line)] bg-white p-4">
               <p className="text-sm text-[var(--muted)]">
-                No multi-address clusters were identified for the selected strictness and time window.
+                No wallet groups met the selected confidence filter and evidence window.
               </p>
             </div>
           ) : null}

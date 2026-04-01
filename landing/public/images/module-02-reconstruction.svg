@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 400" width="500" height="400">
+  <!-- Background -->
+  <rect width="500" height="400" fill="#1d241b"/>
+  
+  <!-- Dithering pattern -->
+  <defs>
+    <pattern id="dither2" x="0" y="0" width="3" height="3" patternUnits="userSpaceOnUse">
+      <rect width="3" height="3" fill="#2d3428"/>
+      <circle cx="1.5" cy="1.5" r="0.6" fill="#0d5f53" opacity="0.4"/>
+      <circle cx="2.5" cy="2.5" r="0.4" fill="#5f6759" opacity="0.3"/>
+    </pattern>
+  </defs>
+  
+  <rect width="500" height="400" fill="url(#dither2)"/>
+  
+  <!-- Title -->
+  <text x="250" y="40" font-family="'Roboto Mono', monospace" font-size="16" font-weight="600" fill="#0d5f53" text-anchor="middle" letter-spacing="1">FLOW RECONSTRUCTION</text>
+  
+  <!-- Flow visualization -->
+  <g stroke="#0d5f53" stroke-width="1.5" fill="none">
+    <!-- Starting point -->
+    <circle cx="250" cy="100" r="15" stroke="#0d5f53" stroke-width="2"/>
+    <text x="250" y="105" font-family="monospace" font-size="10" fill="#0d5f53" text-anchor="middle" font-weight="600">Start</text>
+    
+    <!-- Complex flow paths -->
+    <path d="M 235 115 Q 150 180, 120 250" stroke="#0d5f53" stroke-width="2" opacity="0.9"/>
+    <path d="M 250 115 L 250 250" stroke="#0d5f53" stroke-width="2" opacity="0.9"/>
+    <path d="M 265 115 Q 350 180, 380 250" stroke="#0d5f53" stroke-width="2" opacity="0.9"/>
+    
+    <!-- Intermediate nodes -->
+    <circle cx="150" cy="180" r="8" fill="none" stroke="#0d5f53" stroke-width="1"/>
+    <circle cx="250" cy="180" r="8" fill="none" stroke="#0d5f53" stroke-width="1"/>
+    <circle cx="350" cy="180" r="8" fill="none" stroke="#0d5f53" stroke-width="1"/>
+    
+    <!-- More complex branching -->
+    <circle cx="120" cy="250" r="10" fill="none" stroke="#0d5f53" stroke-width="1.5"/>
+    <circle cx="250" cy="250" r="10" fill="none" stroke="#0d5f53" stroke-width="1.5"/>
+    <circle cx="380" cy="250" r="10" fill="none" stroke="#0d5f53" stroke-width="1.5"/>
+    
+    <!-- Cross connections -->
+    <path d="M 130 250 L 240 250" stroke="#0d5f53" stroke-width="1" opacity="0.5"/>
+    <path d="M 260 250 L 370 250" stroke="#0d5f53" stroke-width="1" opacity="0.5"/>
+    
+    <!-- Output layer -->
+    <rect x="100" y="310" width="300" height="50" stroke="#0d5f53" stroke-width="2"/>
+    <text x="250" y="340" font-family="monospace" font-size="12" fill="#0d5f53" text-anchor="middle" font-weight="600">Movement Path Topology</text>
+  </g>
+  
+  <!-- Grid overlay (forensic detail) -->
+  <g stroke="#0d5f53" stroke-width="0.5" opacity="0.15">
+    <line x1="50" y1="100" x2="450" y2="100"/>
+    <line x1="50" y1="150" x2="450" y2="150"/>
+    <line x1="50" y1="200" x2="450" y2="200"/>
+  </g>
+  
+  <!-- Dithering accent -->
+  <g opacity="0.1">
+    <rect x="0" y="360" width="500" height="40" fill="url(#dither2)"/>
+  </g>
+</svg>

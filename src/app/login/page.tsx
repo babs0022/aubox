@@ -41,7 +41,7 @@ export default function LoginPage() {
             </p>
             <Link
               href="/guide"
-              className="mt-8 inline-flex items-center rounded-full border border-[var(--accent)] bg-[var(--accent)] px-5 py-2 text-sm font-medium text-white hover:bg-[var(--accent-strong)]"
+              className="mt-8 inline-flex items-center border border-[var(--accent-strong)] bg-[var(--accent)] px-5 py-2 text-xs font-semibold uppercase tracking-[0.08em] text-white hover:bg-[var(--accent-strong)]"
             >
               Open guide
             </Link>

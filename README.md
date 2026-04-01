@@ -28,6 +28,27 @@ npm run dev
 
 Open `http://localhost:3000`.
 
+## Welcome Email Setup
+
+Signup can automatically send a founder welcome email using Resend.
+
+1. Configure the environment values shown in `.env.example`.
+2. Set `RESEND_API_KEY` to a valid API key.
+3. Ensure your sender domain/address (for `WELCOME_EMAIL_FROM`) is verified in Resend.
+
+Important variables:
+
+- `RESEND_API_KEY`: required for delivery.
+- `WELCOME_EMAIL_BASE_URL`: optional email-specific link base (recommended `https://dashboard.aubox.app`).
+- `WELCOME_EMAIL_ENABLED`: set `false` to disable sending.
+- `WELCOME_EMAIL_FROM`: sender display + address (default founder sender).
+- `WELCOME_EMAIL_REPLY_TO`: reply address for recipient responses.
+- `FOUNDER_FULL_NAME`: used in email copy/signoff.
+- `FOUNDER_EMAIL`: used in default sender/reply-to fallback.
+- `FOUNDER_CALENDLY_URL`: booking link included in the message.
+
+Note: welcome emails never use localhost URLs. If no non-local URL is configured, links default to `https://dashboard.aubox.app`.
+
 ## Project Layout
 
 - `src/app/layout.tsx`: global metadata and font setup

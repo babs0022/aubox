@@ -1,0 +1,210 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --accent: #0a6e5d;
+    --accent-strong: #01493d;
+    --paper: #f5f2eb;
+    --panel: #f8f5ee;
+    --ink: #1d241b;
+    --muted: #5f6759;
+    --line: #b9beaf;
+    --line-strong: #3a4434;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background-color: var(--paper);
+    color: var(--ink);
+    font-family: 'Work Sans', system-ui, sans-serif;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    letter-spacing: 0.02em;
+  }
+
+  section {
+    border-left: 1px solid var(--line-strong);
+    border-right: 1px solid var(--line-strong);
+    border-bottom: 1px solid var(--line-strong);
+  }
+}
+
+@layer components {
+  .page-shell {
+    @apply mx-auto max-w-7xl;
+  }
+
+  .kicker {
+    font-family: 'Roboto Mono', monospace;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--accent-strong);
+    font-weight: 600;
+  }
+
+  .section-title {
+    @apply mt-3 text-3xl font-semibold leading-tight sm:text-4xl;
+  }
+
+  .section-copy {
+    @apply mt-4 max-w-2xl text-base leading-7;
+    color: var(--muted);
+  }
+
+  .button-primary {
+    @apply inline-flex items-center justify-between gap-4 border px-5 py-4 text-sm font-semibold uppercase;
+    font-family: 'Roboto Mono', monospace;
+    letter-spacing: 0.08em;
+    border-color: var(--accent-strong);
+    background-color: var(--accent);
+    color: var(--paper);
+    transition: all 0.3s ease;
+  }
+
+  .button-primary:hover {
+    background-color: var(--accent-strong);
+  }
+
+  .button-primary .arrow {
+    transition: transform 0.3s ease;
+  }
+
+  .button-primary:hover .arrow {
+    transform: rotate(-45deg);
+  }
+
+  .button-secondary {
+    @apply inline-flex items-center justify-between gap-4 border px-5 py-4 text-sm font-semibold uppercase;
+    font-family: 'Roboto Mono', monospace;
+    letter-spacing: 0.08em;
+    border-color: var(--line-strong);
+    color: var(--ink);
+    background: transparent;
+    transition: all 0.3s ease;
+  }
+
+  .button-secondary:hover {
+    background-color: #ebe7de;
+  }
+
+  .frame-card {
+    border: 1px solid var(--line-strong);
+    background-color: var(--panel);
+    transition: all 0.3s ease;
+  }
+
+  .frame-card:hover {
+    background-color: #f0ece3;
+  }
+
+  .nav-link {
+    @apply relative px-4 py-5 text-xs uppercase;
+    font-family: 'Roboto Mono', monospace;
+    letter-spacing: 0.1em;
+    color: var(--ink);
+    transition: all 0.3s ease;
+  }
+
+  .nav-link::before,
+  .nav-link::after {
+    content: '';
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    opacity: 0;
+    transition: all 0.3s ease;
+  }
+
+  .nav-link::before {
+    top: 8px;
+    left: 8px;
+    border-top: 1px solid var(--line-strong);
+    border-left: 1px solid var(--line-strong);
+  }
+
+  .nav-link::after {
+    bottom: 8px;
+    right: 8px;
+    border-bottom: 1px solid var(--line-strong);
+    border-right: 1px solid var(--line-strong);
+  }
+
+  .nav-link:hover::before,
+  .nav-link:hover::after {
+    opacity: 1;
+  }
+
+  .metric-cell {
+    @apply p-6;
+    border-right: 1px solid var(--line-strong);
+  }
+
+  .metric-cell:last-child {
+    border-right: 0;
+  }
+
+  .flow-item {
+    @apply flex items-start gap-3 border-t px-5 py-4;
+    border-color: var(--line-strong);
+  }
+
+  .flow-item:first-child {
+    border-top: 0;
+  }
+
+  .quote-card {
+    @apply p-6 text-sm leading-7;
+    border: 1px solid var(--line-strong);
+    background: #f7f4ec;
+  }
+
+  .muted {
+    color: var(--muted);
+  }
+  
+  .image-container {
+    @apply relative w-full bg-[var(--ink)] overflow-hidden;
+    min-height: 320px;
+  }
+  
+  .image-container img {
+    @apply object-cover;
+  }
+  
+  .module-row {
+    @apply border-b border-[var(--line-strong)];
+  }
+  
+  .module-row:last-child {
+    @apply border-b-0;
+  }
+}
+
+@keyframes reveal-up {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.reveal-up {
+  animation: reveal-up 0.7s ease-out both;
+}

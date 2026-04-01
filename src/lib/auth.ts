@@ -8,6 +8,9 @@ export interface AuthToken {
   email: string;
   username?: string;
   name?: string;
+  accessGranted?: boolean;
+  onboardingCompleted?: boolean;
+  isAdmin?: boolean;
   iat: number;
   exp: number;
 }
@@ -16,12 +19,23 @@ export const createToken = async (
   sub: string,
   email: string,
   username?: string,
-  name?: string
+  name?: string,
+  accessGranted = false,
+  onboardingCompleted = false,
+  isAdmin = false
 ): Promise<string> => {
   const iat = Math.floor(Date.now() / 1000);
   const exp = iat + 24 * 60 * 60; // 24 hours
 
-  const token = await new SignJWT({ sub, email, username, name })
+  const token = await new SignJWT({
+    sub,
+    email,
+    username,
+    name,
+    accessGranted,
+    onboardingCompleted,
+    isAdmin,
+  })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt(iat)
     .setExpirationTime(exp)

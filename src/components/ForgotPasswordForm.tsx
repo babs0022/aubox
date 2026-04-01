@@ -42,17 +42,17 @@ export default function ForgotPasswordForm() {
 
   if (resetToken) {
     return (
-      <div className="w-full rounded-2xl border border-[#e5e7eb] bg-white p-6 shadow-[0_6px_22px_rgba(0,0,0,0.05)]">
-        <div className="rounded-md border border-green-300 bg-green-50 p-4">
+      <div className="w-full">
+        <div className="border border-green-300 bg-green-50 p-4">
           <p className="text-sm font-semibold text-green-700">Reset link generated!</p>
           <p className="mt-2 text-xs text-green-600">
             In development mode, use this token:
           </p>
-          <code className="mt-2 block break-all rounded-lg bg-green-100 p-2 font-mono text-xs text-green-700">
+          <code className="mt-2 block break-all border border-green-200 bg-green-100 p-2 font-mono text-xs text-green-700">
             {resetToken}
           </code>
           <p className="mt-3 text-xs text-green-600">
-            Copy this token and visit: <code className="font-mono">/reset-password/[token]</code>
+            Open: <code className="font-mono">/reset-password/{resetToken}</code>
           </p>
         </div>
       </div>
@@ -64,29 +64,29 @@ export default function ForgotPasswordForm() {
       onSubmit={handleSubmit}
       className="w-full"
     >
-      <h3 className="mb-4 text-2xl font-semibold text-[#121521]">Request password reset</h3>
+      <h3 className="mb-4 text-2xl font-semibold text-[var(--ink)]">Request password reset</h3>
 
       <div className="mb-4">
         <input
           type="email"
-          placeholder="Username or email"
+          placeholder="Email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
-          className="w-full rounded-md border border-[#d9dde5] bg-[#f5f7fa] px-3 py-2.5 text-sm text-[#111827] outline-none focus:border-[#a5afc0]"
+          className="dash-frame-soft w-full px-3 py-2.5 text-sm text-[var(--ink)] outline-none focus:border-[var(--accent)]"
         />
       </div>
 
       <button
         type="submit"
         disabled={loading || !email}
-        className="w-full rounded-full bg-[var(--accent)] px-4 py-2.5 font-semibold text-white hover:bg-[var(--accent-strong)] disabled:opacity-50"
+        className="w-full border border-[var(--accent-strong)] bg-[var(--accent)] px-4 py-2.5 font-semibold uppercase tracking-[0.08em] text-white hover:bg-[var(--accent-strong)] disabled:opacity-50"
       >
         {loading ? "Sending..." : "Send Reset Link"}
       </button>
 
-      {message && <div className="mt-3 rounded-md border border-green-300 bg-green-50 p-2 text-sm text-green-700">{message}</div>}
-      {error && <div className="mt-3 rounded-md border border-red-300 bg-red-50 p-2 text-sm text-red-700">{error}</div>}
+      {message && <div className="mt-3 border border-green-300 bg-green-50 p-2 text-sm text-green-700">{message}</div>}
+      {error && <div className="mt-3 border border-red-300 bg-red-50 p-2 text-sm text-red-700">{error}</div>}
     </form>
   );
 }

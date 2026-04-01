@@ -38,6 +38,23 @@ const formatRiskLevel = (risk: number | null): string => {
   return "low";
 };
 
+const EXPLORER_BASE_BY_CHAIN: Record<string, string> = {
+  ethereum: "https://etherscan.io",
+  bsc: "https://bscscan.com",
+  base: "https://basescan.org",
+  arbitrum: "https://arbiscan.io",
+};
+
+const isEvmAddress = (value: string): boolean => /^0x[a-fA-F0-9]{40}$/.test(value);
+
+const getAddressExplorerUrl = (chain: string, address: string): string | null => {
+  const base = EXPLORER_BASE_BY_CHAIN[chain.toLowerCase()];
+  if (!base || !isEvmAddress(address)) {
+    return null;
+  }
+  return `${base}/address/${address}`;
+};
+
 export default function ProfileAddressPage() {
   const activeCaseIdHook = useActiveCaseId();
   const [address, setAddress] = useState("");
@@ -277,7 +294,16 @@ export default function ProfileAddressPage() {
           <div className="rounded-xl border border-[var(--line)] bg-white p-4">
             <p className="text-xs uppercase tracking-[0.1em] text-[var(--muted)]">Analyst Summary</p>
             <p className="mt-2 text-sm text-[var(--ink)]">
-              Address {shortenAddress(result.profile.address)} on {result.profile.chain} shows {result.profile.txCount.toLocaleString()} observed
+              Address {(() => {
+                const addressUrl = getAddressExplorerUrl(result.profile?.chain || chain, result.profile?.address || "");
+                return addressUrl ? (
+                  <a href={addressUrl} target="_blank" rel="noreferrer" className="onchain-link" title={result.profile.address}>
+                    {shortenAddress(result.profile.address)}
+                  </a>
+                ) : (
+                  shortenAddress(result.profile.address)
+                );
+              })()} on {result.profile.chain} shows {result.profile.txCount.toLocaleString()} observed
               transactions with a {formatRiskLevel(result.profile.arkhamRisk)} risk posture and
               {" "}
               {result.profile.arkhamLabels.length} attributed labels.

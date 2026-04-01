@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 400" width="500" height="400">
+  <!-- Background -->
+  <rect width="500" height="400" fill="#1d241b"/>
+  
+  <!-- Dithering pattern -->
+  <defs>
+    <pattern id="dither1" x="0" y="0" width="3" height="3" patternUnits="userSpaceOnUse">
+      <rect width="3" height="3" fill="#2d3428"/>
+      <circle cx="1.5" cy="1.5" r="0.6" fill="#0d5f53" opacity="0.4"/>
+      <circle cx="0.5" cy="0.5" r="0.4" fill="#5f6759" opacity="0.3"/>
+    </pattern>
+  </defs>
+  
+  <rect width="500" height="400" fill="url(#dither1)"/>
+  
+  <!-- Title -->
+  <text x="250" y="40" font-family="'Roboto Mono', monospace" font-size="16" font-weight="600" fill="#0d5f53" text-anchor="middle" letter-spacing="1">EVIDENCE COLLECTION</text>
+  
+  <!-- Collection representation -->
+  <g stroke="#0d5f53" stroke-width="1.5" fill="none">
+    <!-- Data sources -->
+    <g opacity="0.7">
+      <!-- Blockchain -->
+      <rect x="40" y="100" width="70" height="60" stroke="#0d5f53"/>
+      <text x="75" y="135" font-family="monospace" font-size="10" fill="#0d5f53" text-anchor="middle">Blockchain</text>
+      
+      <!-- API -->
+      <rect x="150" y="100" width="70" height="60" stroke="#0d5f53"/>
+      <text x="185" y="135" font-family="monospace" font-size="10" fill="#0d5f53" text-anchor="middle">APIs</text>
+      
+      <!-- Database -->
+      <rect x="260" y="100" width="70" height="60" stroke="#0d5f53"/>
+      <text x="295" y="135" font-family="monospace" font-size="10" fill="#0d5f53" text-anchor="middle">Database</text>
+      
+      <!-- External -->
+      <rect x="370" y="100" width="70" height="60" stroke="#0d5f53"/>
+      <text x="405" y="135" font-family="monospace" font-size="10" fill="#0d5f53" text-anchor="middle">External</text>
+    </g>
+    
+    <!-- Arrows pointing down -->
+    <g stroke="#0d5f53" stroke-width="1.5" fill="none">
+      <path d="M 75 160 L 75 190" marker-end="url(#arrowhead)"/>
+      <path d="M 185 160 L 185 190" marker-end="url(#arrowhead)"/>
+      <path d="M 295 160 L 295 190" marker-end="url(#arrowhead)"/>
+      <path d="M 405 160 L 405 190" marker-end="url(#arrowhead)"/>
+    </g>
+    
+    <!-- Collection hub -->
+    <circle cx="250" cy="230" r="45" stroke="#0d5f53" stroke-width="2"/>
+    <text x="250" y="225" font-family="monospace" font-size="11" fill="#0d5f53" text-anchor="middle" font-weight="600">COLLECT</text>
+    <text x="250" y="240" font-family="monospace" font-size="9" fill="#0d5f53" text-anchor="middle" opacity="0.7">&amp; ENRICH</text>
+    
+    <!-- Output arrows -->
+    <path d="M 220 260 L 150 300" marker-end="url(#arrowhead)"/>
+    <path d="M 280 260 L 350 300" marker-end="url(#arrowhead)"/>
+    
+    <!-- Output boxes -->
+    <rect x="110" y="300" width="80" height="50" stroke="#0d5f53"/>
+    <text x="150" y="328" font-family="monospace" font-size="10" fill="#0d5f53" text-anchor="middle">Traces</text>
+    
+    <rect x="310" y="300" width="80" height="50" stroke="#0d5f53"/>
+    <text x="350" y="328" font-family="monospace" font-size="10" fill="#0d5f53" text-anchor="middle">Artifacts</text>
+  </g>
+  
+  <!-- Dithering accent -->
+  <g opacity="0.1">
+    <rect x="0" y="360" width="500" height="40" fill="url(#dither1)"/>
+  </g>
+  
+  <!-- Arrow marker -->
+  <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="5" refY="5" orient="auto">
+      <polygon points="0 0, 10 5, 0 10" fill="#0d5f53"/>
+    </marker>
+  </defs>
+</svg>

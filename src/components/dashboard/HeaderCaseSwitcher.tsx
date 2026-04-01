@@ -53,12 +53,18 @@ export default function HeaderCaseSwitcher() {
 
   const buildCasePath = (caseId: string) => {
     const parts = pathname.split("/").filter(Boolean);
-    // /dashboard/cases/[caseId]/...
+    // /cases/[caseId]/... or /dashboard/cases/[caseId]/...
+    if (parts[0] === "cases" && parts[1]) {
+      const suffix = parts.slice(2).join("/");
+      return suffix ? `/cases/${caseId}/${suffix}` : `/cases/${caseId}`;
+    }
+
     if (parts[0] === "dashboard" && parts[1] === "cases" && parts[2]) {
       const suffix = parts.slice(3).join("/");
-      return suffix ? `/dashboard/cases/${caseId}/${suffix}` : `/dashboard/cases/${caseId}`;
+      return suffix ? `/cases/${caseId}/${suffix}` : `/cases/${caseId}`;
     }
-    return `/dashboard/cases/${caseId}`;
+
+    return `/cases/${caseId}`;
   };
 
   const onSelectCase = (caseId: string) => {
@@ -70,7 +76,7 @@ export default function HeaderCaseSwitcher() {
       router.push(buildCasePath(caseId));
     } else {
       clearActiveCaseId();
-      router.push("/dashboard/cases");
+      router.push("/cases");
     }
 
     window.dispatchEvent(new CustomEvent("caseswitched", { detail: { caseId: caseId || null } }));
@@ -78,11 +84,11 @@ export default function HeaderCaseSwitcher() {
 
   return (
     <div className="relative min-w-[260px] max-w-[520px]">
-      <p className="font-mono text-xs uppercase tracking-[0.16em] text-[var(--muted)]">Case</p>
+      <p className="dash-kicker">Case</p>
       <button
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
-        className="mt-2 flex w-full items-center justify-between rounded-lg border border-[var(--line)] bg-white px-3 py-2 text-left"
+        className="dash-frame-soft mt-2 flex w-full items-center justify-between px-3 py-2 text-left"
         aria-expanded={isOpen}
       >
         <span className="truncate text-sm font-semibold text-[var(--ink)]">
@@ -92,7 +98,7 @@ export default function HeaderCaseSwitcher() {
       </button>
 
       {isOpen ? (
-        <div className="absolute left-0 right-0 top-[74px] z-30 max-h-64 overflow-auto rounded-lg border border-[var(--line)] bg-white p-2 shadow-xl">
+        <div className="dash-frame absolute left-0 right-0 top-[74px] z-30 max-h-64 overflow-auto p-2 shadow-xl">
           {cases.length > 0 ? (
             <div className="space-y-1">
               {cases.map((item) => {
@@ -104,8 +110,8 @@ export default function HeaderCaseSwitcher() {
                     onClick={() => onSelectCase(item.id)}
                     className={`w-full rounded-lg px-2 py-2 text-left text-xs transition ${
                       isSelected
-                        ? "bg-[var(--accent)] text-white"
-                        : "bg-[var(--paper)] text-[var(--ink)] hover:bg-white"
+                        ? "bg-[var(--accent-strong)] text-[var(--paper)]"
+                        : "dash-frame-soft text-[var(--ink)] hover:bg-white"
                     }`}
                   >
                     <p className="truncate font-semibold">{item.title}</p>
@@ -117,7 +123,7 @@ export default function HeaderCaseSwitcher() {
               })}
             </div>
           ) : (
-            <p className="rounded-lg bg-[var(--paper)] px-2 py-2 text-xs text-[var(--muted)]">No cases found yet.</p>
+            <p className="dash-frame-soft px-2 py-2 text-xs text-[var(--muted)]">No cases found yet.</p>
           )}
         </div>
       ) : null}

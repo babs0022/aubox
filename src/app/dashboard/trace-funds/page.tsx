@@ -4,7 +4,7 @@ import { getActiveCaseId } from "@/lib/case-client";
 import { useActiveCaseId } from "@/lib/use-active-case";
 import { formatHexInteger, formatOnchainValue, shortenAddress } from "@/lib/onchain-format";
 import MermaidDiagram from "@/components/dashboard/MermaidDiagram";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type TraceApiResponse = {
   success?: boolean;
@@ -36,6 +36,11 @@ type CrossChainSummary = {
   highConfidenceSignals: number;
   inferredDestinationChains: string[];
   bridgeSignals: BridgeSignalSummary[];
+  duneContext?: {
+    queryId?: number;
+    matchedRows?: number;
+    latestRecord?: Record<string, unknown> | null;
+  };
   providerCoverage?: {
     defillamaMatched?: number;
     dexscreenerRiskResolved?: number;
@@ -143,6 +148,10 @@ type HopDetailsPayload = {
   swaps?: HopSwapDetails[];
   social?: HopSocialDetails[];
   narrative?: string;
+};
+
+type EnsResolveResponse = {
+  resolved?: Record<string, string | null>;
 };
 
 type CaseArtifact = {
@@ -346,6 +355,8 @@ export default function TraceFundsPage() {
   const [artifactSuggestions, setArtifactSuggestions] = useState<CaseArtifact[]>([]);
   const [artifactLoading, setArtifactLoading] = useState(false);
   const [tokenRisks, setTokenRisks] = useState<Record<string, TokenRiskInfo>>({});
+  const [ensByAddress, setEnsByAddress] = useState<Record<string, string | null>>({});
+  const ensResolutionInFlightRef = useRef<Set<string>>(new Set());
   const traceHops = toTraceHops(result?.trace);
   const traceSummary = useMemo(() => {
     if (!result?.trace || typeof result.trace !== "object" || Array.isArray(result.trace)) {
@@ -424,7 +435,8 @@ export default function TraceFundsPage() {
       const nodeId = `n${index++}`;
       nodeMap.set(key, nodeId);
       const label = nodeLabels.get(key);
-      const nodeText = label ? `${shortenAddress(address)} | ${label}` : shortenAddress(address);
+      const displayAddress = resolveAddressLabel(address);
+      const nodeText = label ? `${displayAddress} | ${label}` : displayAddress;
       lines.push(`${nodeId}[\"${safeText(nodeText)}\"];`);
       return nodeId;
     };
@@ -455,11 +467,16 @@ export default function TraceFundsPage() {
     }
 
     return lines.join("\n");
-  }, [traceHops, sourceAddress]);
+  }, [traceHops, sourceAddress, ensByAddress]);
 
   const chains = ["ethereum", "bsc", "base", "arbitrum", "hyperliquid"];
 
   const activeCaseId = activeCaseIdHook || getActiveCaseId();
+
+  function resolveAddressLabel(address: string): string {
+    const ensName = ensByAddress[address.toLowerCase()];
+    return typeof ensName === "string" && ensName.length > 0 ? ensName : address;
+  }
 
   const resolveArtifactToken = async (token: string): Promise<CaseArtifact | null> => {
     if (!activeCaseId || !token.startsWith("@") || token.length < 2) {
@@ -515,8 +532,18 @@ export default function TraceFundsPage() {
   };
 
   const fetchTokenRisks = async (hops: TraceHop[]) => {
-    // Get unique "to" addresses (destination tokens)
-    const uniqueAddresses = Array.from(new Set(hops.map((hop) => hop.to)));
+    // Resolve risk by token contract, not hop destination wallet.
+    const uniqueAddresses = Array.from(
+      new Set(
+        hops
+          .map((hop) => {
+            const candidate = hop.tokenAddress || hop.contractAddress;
+            return candidate.trim();
+          })
+          .filter((value) => isEvmAddress(value))
+          .map((value) => value.toLowerCase())
+      )
+    );
     const risks: Record<string, TokenRiskInfo> = {};
 
     // Fetch risk for each token address
@@ -529,12 +556,14 @@ export default function TraceFundsPage() {
         });
 
         if (response.ok) {
-          const data = await response.json();
-          risks[address.toLowerCase()] = {
-            address,
-            riskLevel: data.riskLevel || "medium",
-            score: data.score || 0,
-          };
+          const data = (await response.json()) as Partial<TokenRiskInfo> | null;
+          if (data && typeof data === "object") {
+            risks[address] = {
+              address,
+              riskLevel: (data.riskLevel as TokenRiskInfo["riskLevel"]) || "medium",
+              score: typeof data.score === "number" ? data.score : 0,
+            };
+          }
         }
       } catch (err) {
         console.error(`Failed to fetch risk for ${address}:`, err);
@@ -802,6 +831,79 @@ export default function TraceFundsPage() {
       void fetchTokenRisks(traceHops);
     }
   }, [traceHops.length, chain]);
+
+  useEffect(() => {
+    const candidateAddresses = new Set<string>();
+
+    for (const hop of traceHops) {
+      if (isEvmAddress(hop.from)) candidateAddresses.add(hop.from.toLowerCase());
+      if (isEvmAddress(hop.to)) candidateAddresses.add(hop.to.toLowerCase());
+    }
+
+    for (const details of Object.values(hopDetailsByKey)) {
+      if (isEvmAddress(details.from.address)) candidateAddresses.add(details.from.address.toLowerCase());
+      if (isEvmAddress(details.to.address)) candidateAddresses.add(details.to.address.toLowerCase());
+
+      for (const transfer of details.transfers) {
+        if (isEvmAddress(transfer.from)) candidateAddresses.add(transfer.from.toLowerCase());
+        if (isEvmAddress(transfer.to)) candidateAddresses.add(transfer.to.toLowerCase());
+      }
+    }
+
+    const unresolved = Array.from(candidateAddresses).filter(
+      (address) => !(address in ensByAddress) && !ensResolutionInFlightRef.current.has(address)
+    );
+    if (unresolved.length === 0) {
+      return;
+    }
+
+    let cancelled = false;
+    for (const address of unresolved) {
+      ensResolutionInFlightRef.current.add(address);
+    }
+
+    const runResolution = async () => {
+      try {
+        const response = await fetch("/api/ens/resolve", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ chain, addresses: unresolved }),
+        });
+
+        if (!response.ok) {
+          return;
+        }
+
+        const payload = (await response.json()) as EnsResolveResponse;
+        if (!payload.resolved || cancelled) {
+          return;
+        }
+
+        const nextEntries = Object.entries(payload.resolved).map(
+          ([address, ensName]) => [address.toLowerCase(), typeof ensName === "string" ? ensName : null] as const
+        );
+
+        if (nextEntries.length > 0) {
+          setEnsByAddress((current) => ({
+            ...current,
+            ...Object.fromEntries(nextEntries),
+          }));
+        }
+      } catch {
+        // ENS lookup is optional enrichment.
+      } finally {
+        for (const address of unresolved) {
+          ensResolutionInFlightRef.current.delete(address);
+        }
+      }
+    };
+
+    void runResolution();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [traceHops, hopDetailsByKey, chain, ensByAddress]);
 
   useEffect(() => {
     const token = sourceAddress.trim();
@@ -1111,6 +1213,48 @@ export default function TraceFundsPage() {
                     </div>
                   </div>
 
+                  {crossChainSummary.duneContext ? (
+                    <div className="mt-3 rounded-lg border border-[var(--line)] bg-[var(--paper)] p-3">
+                      <p className="text-xs uppercase tracking-[0.08em] text-[var(--muted)]">Dune Query Context</p>
+                      <div className="mt-2 grid gap-2 sm:grid-cols-3">
+                        <div className="rounded border border-[var(--line)] bg-white p-2">
+                          <p className="text-[10px] text-[var(--muted)]">Query ID</p>
+                          <p className="mt-1 text-xs font-semibold text-[var(--ink)]">
+                            {typeof crossChainSummary.duneContext.queryId === "number"
+                              ? crossChainSummary.duneContext.queryId
+                              : "N/A"}
+                          </p>
+                        </div>
+                        <div className="rounded border border-[var(--line)] bg-white p-2">
+                          <p className="text-[10px] text-[var(--muted)]">Matched Rows</p>
+                          <p className="mt-1 text-xs font-semibold text-[var(--ink)]">
+                            {typeof crossChainSummary.duneContext.matchedRows === "number"
+                              ? crossChainSummary.duneContext.matchedRows
+                              : 0}
+                          </p>
+                        </div>
+                        <div className="rounded border border-[var(--line)] bg-white p-2">
+                          <p className="text-[10px] text-[var(--muted)]">Latest Row Snapshot</p>
+                          <p className="mt-1 text-xs font-semibold text-[var(--ink)]">
+                            {crossChainSummary.duneContext.latestRecord ? "available" : "none"}
+                          </p>
+                        </div>
+                      </div>
+
+                      {crossChainSummary.duneContext.latestRecord ? (
+                        <div className="mt-2 max-h-36 overflow-auto rounded border border-[var(--line)] bg-white p-2">
+                          {Object.entries(crossChainSummary.duneContext.latestRecord)
+                            .slice(0, 10)
+                            .map(([key, value]) => (
+                              <p key={key} className="font-mono text-[11px] text-[var(--ink)]">
+                                <span className="text-[var(--muted)]">{key}:</span> {String(value)}
+                              </p>
+                            ))}
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : null}
+
                   <div className="mt-3 space-y-2">
                     {crossChainSummary.bridgeSignals.slice(0, 5).map((signal, index) => (
                       <div key={`${signal.txHash}_${index}`} className="rounded-lg border border-[var(--line)] bg-[var(--paper)] p-3">
@@ -1118,14 +1262,25 @@ export default function TraceFundsPage() {
                           {signal.bridgeProtocol || "Bridge pattern"} • confidence {signal.confidence}%
                         </p>
                         <p className="mt-1 text-xs text-[var(--muted)]">
-                          {shortenAddress(signal.from)} to {shortenAddress(signal.to)}
+                          {resolveAddressLabel(signal.from)} to {resolveAddressLabel(signal.to)}
                           {signal.inferredDestinationChain ? ` -> ${signal.inferredDestinationChain}` : ""}
                           {signal.tokenSymbol ? ` • ${signal.tokenSymbol}` : ""}
                           {typeof signal.valueUsd === "number" && Number.isFinite(signal.valueUsd)
                             ? ` • ${formatUsd(signal.valueUsd)}`
                             : ""}
                         </p>
-                        <p className="mt-1 font-mono text-[11px] text-[var(--muted)]">{shortenAddress(signal.txHash, 10, 8)}</p>
+                        {(() => {
+                          const signalTxUrl = getTxExplorerUrl(chain, signal.txHash);
+                          return signalTxUrl ? (
+                            <p className="mt-1 font-mono text-[11px] text-[var(--muted)]">
+                              <a href={signalTxUrl} target="_blank" rel="noreferrer" className="onchain-link" title={signal.txHash}>
+                                {shortenAddress(signal.txHash, 10, 8)}
+                              </a>
+                            </p>
+                          ) : (
+                            <p className="mt-1 font-mono text-[11px] text-[var(--muted)]">{shortenAddress(signal.txHash, 10, 8)}</p>
+                          );
+                        })()}
                       </div>
                     ))}
                   </div>
@@ -1165,7 +1320,8 @@ export default function TraceFundsPage() {
                       </thead>
                       <tbody>
                         {traceHops.slice(0, 12).map((hop, index) => {
-                          const risk = tokenRisks[hop.to.toLowerCase()];
+                          const hopTokenAddress = (hop.tokenAddress || hop.contractAddress || "").toLowerCase();
+                          const risk = hopTokenAddress ? tokenRisks[hopTokenAddress] : undefined;
                           const fromExplorerUrl = getAddressExplorerUrl(chain, hop.from);
                           const toExplorerUrl = getAddressExplorerUrl(chain, hop.to);
                           const txExplorerUrl = getTxExplorerUrl(chain, hop.txHash);
@@ -1177,6 +1333,8 @@ export default function TraceFundsPage() {
                           const tokenDescriptor = [hop.tokenSymbol, hop.tokenName].filter(Boolean).join(" - ");
                           const venueDescriptor = [hop.exchangeHint, hop.dex, hop.protocol].filter(Boolean).join(" - ");
                           const callDescriptor = [hop.method, hop.functionSignature].filter(Boolean).join(" - ");
+                          const fromDisplay = resolveAddressLabel(hop.from);
+                          const toDisplay = resolveAddressLabel(hop.to);
 
                           return [
                             <tr
@@ -1200,13 +1358,13 @@ export default function TraceFundsPage() {
                                         target="_blank"
                                         rel="noreferrer"
                                         onClick={(event) => event.stopPropagation()}
-                                        className="underline decoration-dotted hover:text-[var(--accent)]"
+                                        className="onchain-link"
                                         title={hop.from}
                                       >
-                                        {shortenAddress(hop.from)}
+                                        {fromDisplay}
                                       </a>
                                     ) : (
-                                      <span title={hop.from}>{shortenAddress(hop.from)}</span>
+                                      <span title={hop.from}>{fromDisplay}</span>
                                     )}
                                     {hop.fromLabel ? <span className="text-[10px] text-[var(--muted)]">{trimLabel(hop.fromLabel, 18)}</span> : null}
                                     <button
@@ -1230,13 +1388,13 @@ export default function TraceFundsPage() {
                                         target="_blank"
                                         rel="noreferrer"
                                         onClick={(event) => event.stopPropagation()}
-                                        className="underline decoration-dotted hover:text-[var(--accent)]"
+                                        className="onchain-link"
                                         title={hop.to}
                                       >
-                                        {shortenAddress(hop.to)}
+                                        {toDisplay}
                                       </a>
                                     ) : (
-                                      <span title={hop.to}>{shortenAddress(hop.to)}</span>
+                                      <span title={hop.to}>{toDisplay}</span>
                                     )}
                                     {hop.toLabel ? <span className="text-[10px] text-[var(--muted)]">{trimLabel(hop.toLabel, 18)}</span> : null}
                                     <button
@@ -1286,7 +1444,7 @@ export default function TraceFundsPage() {
                                         target="_blank"
                                         rel="noreferrer"
                                         onClick={(event) => event.stopPropagation()}
-                                        className="underline decoration-dotted hover:text-[var(--accent)]"
+                                        className="onchain-link"
                                         title={hop.txHash}
                                       >
                                         {shortenAddress(hop.txHash, 10, 8)}
@@ -1392,7 +1550,7 @@ export default function TraceFundsPage() {
                                                   <div className="mt-1 max-h-32 overflow-auto">
                                                     {hopDetails.transfers.slice(0, 6).map((txTransfer, txIndex) => (
                                                       <p key={`${hopKey}_tx_${txIndex}`} className="text-xs text-[var(--ink)]">
-                                                        {txTransfer.transferType}: {shortenAddress(txTransfer.from)} to {shortenAddress(txTransfer.to)} | {txTransfer.tokenSymbol || "token"} | {formatUsd(txTransfer.usd)}
+                                                        {txTransfer.transferType}: {resolveAddressLabel(txTransfer.from)} to {resolveAddressLabel(txTransfer.to)} | {formatOnchainValue(txTransfer.value)} {txTransfer.tokenSymbol || "token"} | {formatUsd(txTransfer.usd)}
                                                       </p>
                                                     ))}
                                                   </div>
