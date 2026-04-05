@@ -1,6 +1,9 @@
 import { ImageResponse } from "next/og";
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 
-const imageOrigin = (process.env.NEXT_PUBLIC_SITE_URL ?? "https://dashboard.aubox.app").replace(/\/$/, "");
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 export const size = {
   width: 1200,
@@ -9,9 +12,17 @@ export const size = {
 
 export const contentType = "image/png";
 
-export default function OpenGraphImage() {
-  const backgroundImage = `${imageOrigin}/ogimage.png`;
-  const logoImage = `${imageOrigin}/aubox-logo-dark.png`;
+const toDataUrl = async (relativePath: string, mimeType: string): Promise<string> => {
+  const filePath = join(process.cwd(), "public", relativePath);
+  const fileBuffer = await readFile(filePath);
+  return `data:${mimeType};base64,${fileBuffer.toString("base64")}`;
+};
+
+export default async function OpenGraphImage() {
+  const [backgroundImage, logoImage] = await Promise.all([
+    toDataUrl("ogimage.png", "image/png"),
+    toDataUrl("aubox-logo-dark.png", "image/png"),
+  ]);
 
   return new ImageResponse(
     (
