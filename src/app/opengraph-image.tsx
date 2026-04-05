@@ -1,5 +1,7 @@
 import { ImageResponse } from "next/og";
 
+const imageOrigin = (process.env.NEXT_PUBLIC_SITE_URL ?? "https://dashboard.aubox.app").replace(/\/$/, "");
+
 export const size = {
   width: 1200,
   height: 630,
@@ -8,8 +10,8 @@ export const size = {
 export const contentType = "image/png";
 
 export default function OpenGraphImage() {
-  const backgroundImage = new URL("../../public/ogimage.png", import.meta.url).toString();
-  const logoImage = new URL("../../public/aubox-logo-dark.png", import.meta.url).toString();
+  const backgroundImage = `${imageOrigin}/ogimage.png`;
+  const logoImage = `${imageOrigin}/aubox-logo-dark.png`;
 
   return new ImageResponse(
     (
