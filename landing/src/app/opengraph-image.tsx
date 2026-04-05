@@ -13,9 +13,21 @@ export const size = {
 export const contentType = "image/png";
 
 const toDataUrl = async (relativePath: string, mimeType: string): Promise<string> => {
-  const filePath = join(process.cwd(), "landing", "public", relativePath);
-  const fileBuffer = await readFile(filePath);
-  return `data:${mimeType};base64,${fileBuffer.toString("base64")}`;
+  const candidates = [
+    join(process.cwd(), "public", relativePath),
+    join(process.cwd(), "landing", "public", relativePath),
+  ];
+
+  for (const filePath of candidates) {
+    try {
+      const fileBuffer = await readFile(filePath);
+      return `data:${mimeType};base64,${fileBuffer.toString("base64")}`;
+    } catch {
+      // Try next candidate.
+    }
+  }
+
+  throw new Error(`OpenGraph asset not found: ${relativePath}`);
 };
 
 export default async function OpenGraphImage() {
