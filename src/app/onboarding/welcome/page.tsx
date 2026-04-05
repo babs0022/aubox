@@ -126,6 +126,68 @@ const clipRoundedRect = (
   ctx.closePath();
 };
 
+const fitSingleLineText = (
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  maxWidth: number,
+  suffix = "..."
+): string => {
+  if (ctx.measureText(text).width <= maxWidth) return text;
+
+  let trimmed = text;
+  while (trimmed.length > 1 && ctx.measureText(`${trimmed}${suffix}`).width > maxWidth) {
+    trimmed = trimmed.slice(0, -1);
+  }
+  return `${trimmed}${suffix}`;
+};
+
+const wrapTextIntoLines = (
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  maxWidth: number,
+  maxLines: number
+): string[] => {
+  const words = text.trim().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return [];
+
+  const lines: string[] = [];
+  let currentLine = "";
+
+  for (const word of words) {
+    const candidate = currentLine ? `${currentLine} ${word}` : word;
+    if (ctx.measureText(candidate).width <= maxWidth) {
+      currentLine = candidate;
+      continue;
+    }
+
+    if (currentLine) {
+      lines.push(currentLine);
+      currentLine = word;
+    } else {
+      lines.push(fitSingleLineText(ctx, word, maxWidth));
+      currentLine = "";
+    }
+
+    if (lines.length >= maxLines) {
+      return lines;
+    }
+  }
+
+  if (currentLine && lines.length < maxLines) {
+    lines.push(currentLine);
+  }
+
+  if (lines.length > maxLines) {
+    lines.length = maxLines;
+  }
+
+  if (lines.length === maxLines && words.join(" ") !== lines.join(" ")) {
+    lines[maxLines - 1] = fitSingleLineText(ctx, lines[maxLines - 1], maxWidth);
+  }
+
+  return lines;
+};
+
 export default function WelcomeOnboardingPage() {
   const router = useRouter();
   const [username, setUsername] = useState("");
@@ -150,6 +212,8 @@ export default function WelcomeOnboardingPage() {
   const [error, setError] = useState<string | null>(null);
   const [cardReady, setCardReady] = useState(false);
   const [userNumber, setUserNumber] = useState<number | null>(null);
+  const [cardPreviewDataUrl, setCardPreviewDataUrl] = useState("");
+  const [generatingCardPreview, setGeneratingCardPreview] = useState(false);
   const usernameRequestIdRef = useRef(0);
 
   useEffect(() => {
@@ -627,107 +691,208 @@ export default function WelcomeOnboardingPage() {
     }
   };
 
-  const downloadCard = async () => {
-    if (!cardReady || !userNumber) return;
+  const generateCardDataUrl = async (): Promise<string | null> => {
+    if (!cardReady || !userNumber) return null;
 
     const canvas = document.createElement("canvas");
     canvas.width = 1600;
     canvas.height = 900;
     const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+    if (!ctx) return null;
 
-    const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-    gradient.addColorStop(0, "#0a6e5d");
-    gradient.addColorStop(1, "#01493d");
-    ctx.fillStyle = gradient;
+    ctx.fillStyle = "#f6f2e9";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    const glowA = ctx.createRadialGradient(180, 120, 20, 180, 120, 320);
+    glowA.addColorStop(0, "rgba(10, 110, 93, 0.24)");
+    glowA.addColorStop(1, "rgba(10, 110, 93, 0)");
+    ctx.fillStyle = glowA;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    const glowB = ctx.createRadialGradient(1410, 760, 20, 1410, 760, 360);
+    glowB.addColorStop(0, "rgba(191, 78, 30, 0.22)");
+    glowB.addColorStop(1, "rgba(191, 78, 30, 0)");
+    ctx.fillStyle = glowB;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
     drawDitheredOverlay(ctx, canvas.width, canvas.height);
 
-    ctx.strokeStyle = "rgba(244, 240, 230, 0.5)";
-    ctx.lineWidth = 3;
-    ctx.strokeRect(28, 28, canvas.width - 56, canvas.height - 56);
+    const shellX = 46;
+    const shellY = 40;
+    const shellW = 1508;
+    const shellH = 820;
 
-    ctx.fillStyle = "#f7f1e6";
-    ctx.font = "600 30px 'Instrument Sans', 'Segoe UI', sans-serif";
-    ctx.letterSpacing = "1px";
-    ctx.fillText("AUBOX ONBOARDING CARD", 84, 100);
+    ctx.fillStyle = "#f8f5ee";
+    ctx.fillRect(shellX, shellY, shellW, shellH);
 
-    const panelX = 84;
-    const panelY = 145;
-    const panelW = 950;
-    const panelH = 610;
-
-    ctx.fillStyle = "rgba(255, 255, 255, 0.08)";
-    clipRoundedRect(ctx, panelX, panelY, panelW, panelH, 16);
-    ctx.fill();
-    ctx.strokeStyle = "rgba(255, 255, 255, 0.2)";
+    ctx.strokeStyle = "#334032";
     ctx.lineWidth = 2;
-    clipRoundedRect(ctx, panelX, panelY, panelW, panelH, 16);
-    ctx.stroke();
+    ctx.strokeRect(shellX, shellY, shellW, shellH);
 
-    const profileSize = 180;
+    ctx.fillStyle = "#01493d";
+    ctx.fillRect(shellX, shellY, shellW, 14);
+
+    ctx.strokeStyle = "rgba(21, 21, 21, 0.18)";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(shellX + 22, shellY + 22, shellW - 44, shellH - 44);
+
+    ctx.fillStyle = "#01493d";
+    ctx.font = "600 24px 'JetBrains Mono', 'Segoe UI', monospace";
+    ctx.fillText("AUBOX ONBOARDING CARD", 88, 106);
+
+    const panelX = 88;
+    const panelY = 150;
+    const panelW = 980;
+    const panelH = 620;
+
+    const railX = 1092;
+    const railY = 150;
+    const railW = 420;
+    const railH = 620;
+
+    ctx.fillStyle = "#fffdf8";
+    ctx.fillRect(panelX, panelY, panelW, panelH);
+    ctx.strokeStyle = "rgba(21, 21, 21, 0.18)";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(panelX, panelY, panelW, panelH);
+
+    ctx.fillStyle = "#fffdf8";
+    ctx.fillRect(railX, railY, railW, railH);
+    ctx.strokeRect(railX, railY, railW, railH);
+
+    const profileSize = 168;
     const profileX = panelX + 56;
-    const profileY = panelY + 70;
+    const profileY = panelY + 56;
 
-    ctx.fillStyle = "rgba(255,255,255,0.18)";
-    clipRoundedRect(ctx, profileX, profileY, profileSize, profileSize, 20);
-    ctx.fill();
+    ctx.fillStyle = "#f2eee5";
+    ctx.fillRect(profileX, profileY, profileSize, profileSize);
+    ctx.strokeStyle = "rgba(21, 21, 21, 0.18)";
+    ctx.strokeRect(profileX, profileY, profileSize, profileSize);
 
-    const profileSource = profileImageUrl || localImagePreviewUrl;
-    if (profileSource) {
-      try {
-        const profileImg = await loadImage(profileSource);
-        ctx.save();
-        clipRoundedRect(ctx, profileX, profileY, profileSize, profileSize, 20);
-        ctx.clip();
-        ctx.drawImage(profileImg, profileX, profileY, profileSize, profileSize);
-        ctx.restore();
-      } catch {
-        // Keep placeholder if avatar loading fails.
+    let profileDrawn = false;
+
+    const profileSources = [localImagePreviewUrl, profileImageUrl].filter(Boolean);
+    if (profileSources.length > 0) {
+      for (const source of profileSources) {
+        try {
+          const profileImg = await loadImage(source);
+          ctx.save();
+          clipRoundedRect(ctx, profileX, profileY, profileSize, profileSize, 0);
+          ctx.clip();
+          ctx.drawImage(profileImg, profileX, profileY, profileSize, profileSize);
+          ctx.restore();
+          profileDrawn = true;
+          break;
+        } catch {
+          // Try the next available source.
+        }
       }
     }
 
+    if (!profileDrawn) {
+      const seed = (username || "investigator").slice(0, 2).toUpperCase();
+      ctx.fillStyle = "#01493d";
+      ctx.font = "700 56px 'Instrument Sans', 'Segoe UI', sans-serif";
+      ctx.fillText(seed, profileX + 44, profileY + 102);
+    }
+
+    const usernameX = panelX + 262;
+    const usernameY = panelY + 130;
+
     const safeUsername = `@${username || "investigator"}`;
-    ctx.fillStyle = "#f7f1e6";
-    ctx.font = "700 62px 'Instrument Sans', 'Segoe UI', sans-serif";
-    ctx.fillText(safeUsername, panelX + 280, panelY + 170);
+    ctx.fillStyle = "#151515";
+    ctx.font = "700 66px 'Instrument Sans', 'Segoe UI', sans-serif";
+    const usernameMaxWidth = panelW - 310;
+    ctx.fillText(fitSingleLineText(ctx, safeUsername, usernameMaxWidth), usernameX, usernameY);
 
-    ctx.fillStyle = "#d0e7df";
-    ctx.font = "500 40px 'Instrument Sans', 'Segoe UI', sans-serif";
-    ctx.fillText(`User #${userNumber}`, panelX + 280, panelY + 228);
+    ctx.fillStyle = "#574f46";
+    ctx.font = "600 40px 'Instrument Sans', 'Segoe UI', sans-serif";
+    ctx.fillText(`User #${userNumber}`, usernameX, usernameY + 54);
 
-    ctx.fillStyle = "#ecf5f1";
-    ctx.font = "600 56px 'Instrument Sans', 'Segoe UI', sans-serif";
-    ctx.fillText("Built for serious onchain investigators.", panelX + 56, panelY + 360);
+    ctx.fillStyle = "#01493d";
+    ctx.font = "600 20px 'JetBrains Mono', 'Segoe UI', monospace";
+    ctx.fillText("INVESTIGATOR IDENTITY", panelX + 56, panelY + 280);
 
-    ctx.fillStyle = "#d0e7df";
+    ctx.fillStyle = "#151515";
+    ctx.font = "600 58px 'Instrument Sans', 'Segoe UI', sans-serif";
+    const headlineLines = wrapTextIntoLines(ctx, "Built for serious onchain investigators.", 852, 2);
+    const headlineStartY = panelY + 370;
+    for (let i = 0; i < headlineLines.length; i += 1) {
+      ctx.fillText(headlineLines[i], panelX + 56, headlineStartY + i * 62);
+    }
+
+    ctx.fillStyle = "#574f46";
     ctx.font = "500 34px 'Instrument Sans', 'Segoe UI', sans-serif";
-    ctx.fillText("Move faster, keep full analytical control.", panelX + 56, panelY + 422);
+    const subheadY = headlineStartY + Math.max(0, headlineLines.length - 1) * 62 + 66;
+    ctx.fillText("Move faster, keep full analytical control.", panelX + 56, subheadY);
 
-    const qrSize = 260;
-    const qrX = 1170;
-    const qrY = 460;
-    ctx.fillStyle = "#f7f1e6";
-    clipRoundedRect(ctx, qrX - 16, qrY - 16, qrSize + 32, qrSize + 32, 10);
-    ctx.fill();
+    const qrSize = 244;
+    const qrX = railX + 88;
+    const qrY = railY + 188;
+
+    ctx.fillStyle = "#01493d";
+    ctx.font = "600 20px 'JetBrains Mono', 'Segoe UI', monospace";
+    ctx.fillText("SCAN ACCESS", railX + 40, railY + 78);
+
+    ctx.fillStyle = "#151515";
+    ctx.font = "600 38px 'Instrument Sans', 'Segoe UI', sans-serif";
+    ctx.fillText("Open Aubox", railX + 40, railY + 132);
+
+    ctx.fillStyle = "#fffdf8";
+    ctx.fillRect(qrX - 16, qrY - 16, qrSize + 32, qrSize + 32);
+    ctx.strokeStyle = "rgba(21, 21, 21, 0.18)";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(qrX - 16, qrY - 16, qrSize + 32, qrSize + 32);
 
     try {
       const qrImage = await loadImage(`/api/qr?size=${qrSize}&data=${encodeURIComponent(AUBOX_LINK)}`);
       ctx.drawImage(qrImage, qrX, qrY, qrSize, qrSize);
     } catch {
-      ctx.fillStyle = "#0f1412";
+      ctx.fillStyle = "#151515";
       ctx.font = "600 20px 'Instrument Sans', 'Segoe UI', sans-serif";
       ctx.fillText("QR unavailable", qrX + 44, qrY + 140);
     }
 
-    ctx.fillStyle = "#f7f1e6";
-    ctx.font = "600 34px 'Instrument Sans', 'Segoe UI', sans-serif";
-    ctx.fillText("Scan to open Aubox", 1088, 800);
-    ctx.fillStyle = "#d0e7df";
+    ctx.fillStyle = "#151515";
+    ctx.font = "600 32px 'Instrument Sans', 'Segoe UI', sans-serif";
+    ctx.fillText("Scan to open Aubox", railX + 40, railY + 510);
+    ctx.fillStyle = "#574f46";
     ctx.font = "500 28px 'Instrument Sans', 'Segoe UI', sans-serif";
-    ctx.fillText("aubox.app", 1088, 842);
+    ctx.fillText("aubox.app", railX + 40, railY + 556);
 
-    const dataUrl = canvas.toDataURL("image/png", 1);
+    ctx.fillStyle = "#01493d";
+    ctx.font = "600 18px 'JetBrains Mono', 'Segoe UI', monospace";
+    ctx.fillText("Aubox Case Intelligence", railX + 40, railY + 598);
+
+    return canvas.toDataURL("image/png", 1);
+  };
+
+  useEffect(() => {
+    if (!cardReady) return;
+
+    let isCancelled = false;
+    setGeneratingCardPreview(true);
+
+    void generateCardDataUrl()
+      .then((dataUrl) => {
+        if (isCancelled || !dataUrl) return;
+        setCardPreviewDataUrl(dataUrl);
+      })
+      .finally(() => {
+        if (!isCancelled) {
+          setGeneratingCardPreview(false);
+        }
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [cardReady, userNumber, username, profileImageUrl, localImagePreviewUrl]);
+
+  const downloadCard = async () => {
+    const dataUrl = cardPreviewDataUrl || (await generateCardDataUrl());
+    if (!dataUrl) return;
+
     const link = document.createElement("a");
     link.href = dataUrl;
     link.download = `aubox-user-card-${username || "investigator"}.png`;
@@ -749,19 +914,34 @@ export default function WelcomeOnboardingPage() {
             <h1 className="mt-4 text-3xl font-semibold text-[var(--ink)]">You are in as User #{userNumber}</h1>
             <p className="mt-2 text-sm text-[var(--muted)]">Download your card, share it if you want, then continue to your dashboard.</p>
 
-            <div className="mt-6 border border-[var(--line-strong)] bg-[linear-gradient(135deg,#0a6e5d_0%,#01493d_100%)] p-5 text-[var(--paper)]">
-              <div className="flex items-center gap-3">
-                {profileImageUrl ? (
-                  <Image src={profileImageUrl} alt="Profile" width={64} height={64} className="h-16 w-16 rounded-full object-cover" />
-                ) : (
-                  <div className="h-16 w-16 rounded-full bg-[var(--accent)]/20" />
-                )}
-                <div>
+            <div className="mt-6 dash-frame-soft p-5 text-[var(--ink)]">
+              <div className="flex items-start gap-5">
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs uppercase tracking-[0.16em] text-[var(--accent-strong)]">Live card preview</p>
+                  <p className="mt-1 text-sm text-[var(--muted)]">This is the exact image that will be downloaded.</p>
+                </div>
+                <div className="shrink-0 text-right">
                   <p className="text-lg font-semibold">@{username}</p>
-                  <p className="text-sm text-[#d0e7df]">User #{userNumber}</p>
+                  <p className="text-sm text-[var(--muted)]">User #{userNumber}</p>
                 </div>
               </div>
-              <p className="mt-4 text-sm text-[#e6f1ec]">Rectangular PNG card with your profile, identity, and QR to aubox.app.</p>
+
+              <div className="mt-4 overflow-hidden border border-[var(--line-strong)] bg-[var(--panel)]">
+                {cardPreviewDataUrl ? (
+                  <Image
+                    src={cardPreviewDataUrl}
+                    alt="Generated onboarding card preview"
+                    width={1600}
+                    height={900}
+                    unoptimized
+                    className="h-auto w-full object-cover"
+                  />
+                ) : (
+                  <div className="flex h-[260px] items-center justify-center text-sm text-[var(--muted)]">
+                    {generatingCardPreview ? "Rendering your card preview..." : "Card preview unavailable"}
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="mt-8 flex flex-wrap gap-3">
