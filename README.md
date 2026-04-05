@@ -49,6 +49,22 @@ Important variables:
 
 Note: welcome emails never use localhost URLs. If no non-local URL is configured, links default to `https://dashboard.aubox.app`.
 
+## Request Access Workflow
+
+Access to Aubox is gated.
+
+1. Users submit a request at `/request-access`.
+2. Admin reviews requests at `/dashboard/admin/access-requests`.
+3. Admin generates a single-use access code.
+4. Admin approves and sends an email with signup instructions and the generated code.
+
+Approval emails are sent through Resend and include a warning that the code is one-time use.
+
+Additional email variables:
+
+- `ACCESS_APPROVAL_EMAIL_FROM`: sender display + address for approval emails.
+- `ACCESS_APPROVAL_EMAIL_REPLY_TO`: reply address for approval emails.
+
 ## Project Layout
 
 - `src/app/layout.tsx`: global metadata and font setup

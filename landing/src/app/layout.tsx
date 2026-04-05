@@ -19,9 +19,10 @@ export const metadata: Metadata = {
     url: 'https://aubox.app',
     images: [
       {
-        url: '/images/aubox-logo-dark.png',
+        url: '/opengraph-image',
         width: 1200,
         height: 630,
+        alt: 'Aubox | Forensic Intelligence Platform',
       },
     ],
   },
@@ -30,7 +31,7 @@ export const metadata: Metadata = {
     title: 'Aubox | Forensic Intelligence Platform',
     description:
       'Built to offload repetitive investigation work, not replace investigators.',
-    images: ['/images/aubox-logo-dark.png'],
+    images: ['/opengraph-image'],
   },
 };
 

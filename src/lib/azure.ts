@@ -2,6 +2,7 @@ import { DefaultAzureCredential } from "@azure/identity";
 import { ServiceBusClient } from "@azure/service-bus";
 import { TableClient } from "@azure/data-tables";
 import { randomUUID, scryptSync, timingSafeEqual } from "node:crypto";
+import { sendPasswordResetEmail } from "./email";
 
 const credential = new DefaultAzureCredential();
 
@@ -15,6 +16,8 @@ const CASE_EVENTS_TABLE_NAME = "auboxcaseevents";
 const CASE_ARTIFACTS_TABLE_NAME = "auboxcaseartifacts";
 const JOBS_TABLE_NAME = "auboxjobs";
 const ACCESS_CODES_TABLE_NAME = "auboxaccesscodes";
+const ACCESS_REQUESTS_TABLE_NAME = "auboxaccessrequests";
+const FEEDBACK_TABLE_NAME = "auboxfeedback";
 
 let usersTableClient: TableClient | null = null;
 let casesTableClient: TableClient | null = null;
@@ -22,6 +25,8 @@ let caseEventsTableClient: TableClient | null = null;
 let caseArtifactsTableClient: TableClient | null = null;
 let jobsTableClient: TableClient | null = null;
 let accessCodesTableClient: TableClient | null = null;
+let accessRequestsTableClient: TableClient | null = null;
+let feedbackTableClient: TableClient | null = null;
 
 const getUsersTableClient = (): TableClient => {
   if (usersTableClient) {
@@ -107,12 +112,42 @@ const getAccessCodesTableClient = (): TableClient => {
   return accessCodesTableClient;
 };
 
+const getAccessRequestsTableClient = (): TableClient => {
+  if (accessRequestsTableClient) {
+    return accessRequestsTableClient;
+  }
+
+  const connectionString = process.env.AZURE_STORAGE_CONNECTION_STRING;
+  if (!connectionString) {
+    throw new Error("AZURE_STORAGE_CONNECTION_STRING is not configured");
+  }
+
+  accessRequestsTableClient = TableClient.fromConnectionString(connectionString, ACCESS_REQUESTS_TABLE_NAME);
+  return accessRequestsTableClient;
+};
+
+const getFeedbackTableClient = (): TableClient => {
+  if (feedbackTableClient) {
+    return feedbackTableClient;
+  }
+
+  const connectionString = process.env.AZURE_STORAGE_CONNECTION_STRING;
+  if (!connectionString) {
+    throw new Error("AZURE_STORAGE_CONNECTION_STRING is not configured");
+  }
+
+  feedbackTableClient = TableClient.fromConnectionString(connectionString, FEEDBACK_TABLE_NAME);
+  return feedbackTableClient;
+};
+
 let usersTableInitPromise: Promise<void> | null = null;
 let casesTableInitPromise: Promise<void> | null = null;
 let caseEventsTableInitPromise: Promise<void> | null = null;
 let caseArtifactsTableInitPromise: Promise<void> | null = null;
 let jobsTableInitPromise: Promise<void> | null = null;
 let accessCodesTableInitPromise: Promise<void> | null = null;
+let accessRequestsTableInitPromise: Promise<void> | null = null;
+let feedbackTableInitPromise: Promise<void> | null = null;
 
 const ensureUsersTable = async (): Promise<void> => {
   if (!usersTableInitPromise) {
@@ -182,6 +217,32 @@ const ensureAccessCodesTable = async (): Promise<void> => {
   }
 
   await accessCodesTableInitPromise;
+};
+
+const ensureAccessRequestsTable = async (): Promise<void> => {
+  if (!accessRequestsTableInitPromise) {
+    accessRequestsTableInitPromise = (async () => {
+      const client = getAccessRequestsTableClient();
+      await client.createTable().catch(() => {
+        // Ignore if table already exists.
+      });
+    })();
+  }
+
+  await accessRequestsTableInitPromise;
+};
+
+const ensureFeedbackTable = async (): Promise<void> => {
+  if (!feedbackTableInitPromise) {
+    feedbackTableInitPromise = (async () => {
+      const client = getFeedbackTableClient();
+      await client.createTable().catch(() => {
+        // Ignore if table already exists.
+      });
+    })();
+  }
+
+  await feedbackTableInitPromise;
 };
 
 export interface AuthUser {
@@ -292,6 +353,75 @@ export interface AccessCodeRecord {
   createdByUserId: string;
   createdAt: string;
   expiresAt?: string;
+}
+
+export type AccessRequestStatus = "pending" | "code_generated" | "approved" | "rejected";
+
+export interface AccessRequestRecord {
+  id: string;
+  fullName: string;
+  email: string;
+  organization: string;
+  ecosystemRole: string;
+  ecosystemRoleOther?: string;
+  primaryUseCase: string;
+  expectations: string;
+  telegramOrDiscord?: string;
+  websiteOrLinkedIn?: string;
+  region?: string;
+  xHandle?: string;
+  status: AccessRequestStatus;
+  createdAt: string;
+  updatedAt: string;
+  reviewedAt?: string;
+  reviewedByUserId?: string;
+  generatedCode?: string;
+  generatedCodeAt?: string;
+  approvalEmailSentAt?: string;
+  adminNotes?: string;
+}
+
+export interface AccessRequestQueueSummary {
+  total: number;
+  reviewed: number;
+  pending: number;
+  codeGenerated: number;
+  approved: number;
+  rejected: number;
+}
+
+export interface AccessRequestListResult {
+  requests: AccessRequestRecord[];
+  summary: AccessRequestQueueSummary;
+}
+
+export type FeedbackType = "feature_request" | "bug_report";
+export type FeedbackStatus = "new" | "in_review" | "resolved" | "dismissed";
+
+export interface FeedbackRecord {
+  id: string;
+  userId: string;
+  email: string;
+  type: FeedbackType;
+  title: string;
+  description: string;
+  category: string;
+  status: FeedbackStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface FeedbackQueueSummary {
+  total: number;
+  new: number;
+  inReview: number;
+  resolved: number;
+  dismissed: number;
+}
+
+export interface FeedbackListResult {
+  feedback: FeedbackRecord[];
+  summary: FeedbackQueueSummary;
 }
 
 export interface CaseRecord {
@@ -583,6 +713,17 @@ export const requestPasswordReset = async (email: string): Promise<string> => {
   }
 
   const resetToken = generateResetToken(user.id, user.email);
+  const resendApiKey = process.env.RESEND_API_KEY;
+  if (resendApiKey) {
+    await sendPasswordResetEmail({
+      toEmail: user.email,
+      recipientName: user.name || user.username || undefined,
+      resetToken,
+    });
+  } else if (process.env.NODE_ENV === "production") {
+    throw new Error("RESEND_API_KEY is not configured");
+  }
+
   return resetToken;
 };
 
@@ -768,50 +909,34 @@ export const updateUserProfile = async (
       {
         partitionKey: "users",
         rowKey: userId,
-        email: existing.email,
         username: nextUsername,
-        passwordHash: existing.passwordHash,
         name: payload.name || "",
         profileIcon: payload.profileIcon || "",
-        accessGranted: Boolean(existing.accessGranted),
-        onboardingCompleted: Boolean(existing.onboardingCompleted),
-        onboardingStep: String(existing.onboardingStep || "access_code"),
-        userSequenceNumber: existing.userSequenceNumber || "",
-        howHeardAboutUs: existing.howHeardAboutUs || "",
-        roleStatus: existing.roleStatus || "",
-        teamSize: existing.teamSize || "",
-        useCase: existing.useCase || "",
-        region: existing.region || "",
-        referralCodeUsed: existing.referralCodeUsed || "",
-        inviteGrantLimit: existing.inviteGrantLimit || 0,
-        inviteGrantUsed: existing.inviteGrantUsed || 0,
-        inviteGrantCycleDays: existing.inviteGrantCycleDays || DEFAULT_INVITE_GRANT_CYCLE_DAYS,
-        inviteGrantCycleStartedAt: existing.inviteGrantCycleStartedAt || existing.updatedAt || new Date().toISOString(),
-        createdAt: existing.createdAt,
-        lastLoginAt: existing.lastLoginAt || "",
         updatedAt: new Date().toISOString(),
       },
-      "Replace"
+      "Merge"
     );
+
+    const refreshed = await client.getEntity<Record<string, unknown>>("users", userId);
 
     // Invalidate affected cache entries
     invalidateUserCache(String(existing.email || ""), nextUsername);
 
     return {
       id: userId,
-      email: String(existing.email || ""),
-      username: nextUsername,
-      name: payload.name || "",
-      profileIcon: payload.profileIcon || "",
-      accessGranted: Boolean(existing.accessGranted),
-      onboardingCompleted: Boolean(existing.onboardingCompleted),
-      onboardingStep: String(existing.onboardingStep || "access_code"),
-      userSequenceNumber: existing.userSequenceNumber ? Number(existing.userSequenceNumber) : undefined,
-      inviteGrantLimit: Number(existing.inviteGrantLimit || 0),
-      inviteGrantUsed: Number(existing.inviteGrantUsed || 0),
-      inviteGrantCycleDays: Number(existing.inviteGrantCycleDays || DEFAULT_INVITE_GRANT_CYCLE_DAYS),
-      inviteGrantCycleStartedAt: existing.inviteGrantCycleStartedAt
-        ? String(existing.inviteGrantCycleStartedAt)
+      email: String(refreshed.email || existing.email || ""),
+      username: refreshed.username ? String(refreshed.username) : nextUsername,
+      name: refreshed.name ? String(refreshed.name) : payload.name || "",
+      profileIcon: refreshed.profileIcon ? String(refreshed.profileIcon) : payload.profileIcon || "",
+      accessGranted: Boolean(refreshed.accessGranted),
+      onboardingCompleted: Boolean(refreshed.onboardingCompleted),
+      onboardingStep: String(refreshed.onboardingStep || "access_code"),
+      userSequenceNumber: refreshed.userSequenceNumber ? Number(refreshed.userSequenceNumber) : undefined,
+      inviteGrantLimit: Number(refreshed.inviteGrantLimit || 0),
+      inviteGrantUsed: Number(refreshed.inviteGrantUsed || 0),
+      inviteGrantCycleDays: Number(refreshed.inviteGrantCycleDays || DEFAULT_INVITE_GRANT_CYCLE_DAYS),
+      inviteGrantCycleStartedAt: refreshed.inviteGrantCycleStartedAt
+        ? String(refreshed.inviteGrantCycleStartedAt)
         : undefined,
     };
   } catch (error) {
@@ -861,6 +986,35 @@ const mapEntityToAccessCode = (entity: Record<string, unknown>): AccessCodeRecor
   createdAt: String(entity.createdAt || new Date().toISOString()),
   expiresAt: entity.expiresAt ? String(entity.expiresAt) : undefined,
 });
+
+const mapEntityToAccessRequest = (entity: Record<string, unknown>): AccessRequestRecord => ({
+  id: String(entity.rowKey || ""),
+  fullName: String(entity.fullName || ""),
+  email: String(entity.email || "").toLowerCase(),
+  organization: String(entity.organization || ""),
+  ecosystemRole: String(entity.ecosystemRole || ""),
+  ecosystemRoleOther: entity.ecosystemRoleOther ? String(entity.ecosystemRoleOther) : undefined,
+  primaryUseCase: String(entity.primaryUseCase || ""),
+  expectations: String(entity.expectations || ""),
+  telegramOrDiscord: entity.telegramOrDiscord ? String(entity.telegramOrDiscord) : undefined,
+  websiteOrLinkedIn: entity.websiteOrLinkedIn ? String(entity.websiteOrLinkedIn) : undefined,
+  region: entity.region ? String(entity.region) : undefined,
+  xHandle: entity.xHandle ? String(entity.xHandle) : undefined,
+  status: (String(entity.status || "pending") as AccessRequestStatus),
+  createdAt: String(entity.createdAt || new Date().toISOString()),
+  updatedAt: String(entity.updatedAt || new Date().toISOString()),
+  reviewedAt: entity.reviewedAt ? String(entity.reviewedAt) : undefined,
+  reviewedByUserId: entity.reviewedByUserId ? String(entity.reviewedByUserId) : undefined,
+  generatedCode: entity.generatedCode ? String(entity.generatedCode) : undefined,
+  generatedCodeAt: entity.generatedCodeAt ? String(entity.generatedCodeAt) : undefined,
+  approvalEmailSentAt: entity.approvalEmailSentAt ? String(entity.approvalEmailSentAt) : undefined,
+  adminNotes: entity.adminNotes ? String(entity.adminNotes) : undefined,
+});
+
+const createAccessRequestCode = (): string => {
+  const random = Math.random().toString(36).slice(2, 8);
+  return `aubx-${random}`;
+};
 
 export const createAccessCode = async (
   code: string,
@@ -982,6 +1136,406 @@ export const listAccessCodeCreatorStats = async (options?: { windowDays?: number
     }
     return b.codesCreated - a.codesCreated;
   });
+};
+
+export const createAccessRequest = async (payload: {
+  fullName: string;
+  email: string;
+  organization: string;
+  ecosystemRole: string;
+  ecosystemRoleOther?: string;
+  primaryUseCase: string;
+  expectations: string;
+  telegramOrDiscord?: string;
+  websiteOrLinkedIn?: string;
+  region?: string;
+  xHandle?: string;
+}): Promise<AccessRequestRecord> => {
+  await ensureAccessRequestsTable();
+  const client = getAccessRequestsTableClient();
+  const id = randomUUID();
+  const now = new Date().toISOString();
+
+  const entity = {
+    partitionKey: "requests",
+    rowKey: id,
+    fullName: payload.fullName.trim(),
+    email: normalizeEmail(payload.email),
+    organization: payload.organization.trim(),
+    ecosystemRole: payload.ecosystemRole.trim(),
+    ecosystemRoleOther: payload.ecosystemRoleOther?.trim() || "",
+    primaryUseCase: payload.primaryUseCase.trim(),
+    expectations: payload.expectations.trim(),
+    telegramOrDiscord: payload.telegramOrDiscord?.trim() || "",
+    websiteOrLinkedIn: payload.websiteOrLinkedIn?.trim() || "",
+    region: payload.region?.trim() || "",
+    xHandle: payload.xHandle?.trim() || "",
+    status: "pending",
+    reviewedAt: "",
+    reviewedByUserId: "",
+    generatedCode: "",
+    generatedCodeAt: "",
+    approvalEmailSentAt: "",
+    adminNotes: "",
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  await client.createEntity(entity);
+  return mapEntityToAccessRequest(entity);
+};
+
+export const findPendingAccessRequestByEmail = async (email: string): Promise<AccessRequestRecord | null> => {
+  await ensureAccessRequestsTable();
+  const client = getAccessRequestsTableClient();
+  const normalizedEmail = normalizeEmail(email);
+
+  const entities = client.listEntities({
+    queryOptions: {
+      filter: "PartitionKey eq 'requests'",
+    },
+  });
+
+  for await (const entity of entities) {
+    const record = mapEntityToAccessRequest(entity as Record<string, unknown>);
+    if (record.email === normalizedEmail && record.status === "pending") {
+      return record;
+    }
+  }
+
+  return null;
+};
+
+export const listAccessRequestsForAdmin = async (options?: {
+  status?: AccessRequestStatus | "all";
+  search?: string;
+}): Promise<AccessRequestListResult> => {
+  await ensureAccessRequestsTable();
+  const client = getAccessRequestsTableClient();
+
+  const requestedStatus = options?.status || "all";
+  const search = options?.search?.trim().toLowerCase() || "";
+  const entities = client.listEntities({
+    queryOptions: {
+      filter: "PartitionKey eq 'requests'",
+    },
+  });
+
+  const allRecords: AccessRequestRecord[] = [];
+  for await (const entity of entities) {
+    allRecords.push(mapEntityToAccessRequest(entity as Record<string, unknown>));
+  }
+
+  const summary: AccessRequestQueueSummary = {
+    total: allRecords.length,
+    reviewed: allRecords.filter((item) => item.status === "approved" || item.status === "rejected").length,
+    pending: allRecords.filter((item) => item.status === "pending").length,
+    codeGenerated: allRecords.filter((item) => item.status === "code_generated").length,
+    approved: allRecords.filter((item) => item.status === "approved").length,
+    rejected: allRecords.filter((item) => item.status === "rejected").length,
+  };
+
+  const filtered = allRecords.filter((item) => {
+    if (requestedStatus !== "all" && item.status !== requestedStatus) {
+      return false;
+    }
+
+    if (!search) {
+      return true;
+    }
+
+    return (
+      item.email.toLowerCase().includes(search) ||
+      item.fullName.toLowerCase().includes(search) ||
+      item.organization.toLowerCase().includes(search) ||
+      item.ecosystemRole.toLowerCase().includes(search)
+    );
+  });
+
+  filtered.sort((a, b) => (a.createdAt > b.createdAt ? -1 : 1));
+
+  return {
+    requests: filtered,
+    summary,
+  };
+};
+
+export const getAccessRequestByIdForAdmin = async (requestId: string): Promise<AccessRequestRecord | null> => {
+  await ensureAccessRequestsTable();
+  const client = getAccessRequestsTableClient();
+  const entity = await client.getEntity<Record<string, unknown>>("requests", requestId).catch(() => null);
+  if (!entity) {
+    return null;
+  }
+
+  return mapEntityToAccessRequest(entity);
+};
+
+export const generateAccessCodeForRequest = async (
+  requestId: string,
+  adminUserId: string,
+  adminNotes?: string
+): Promise<AccessRequestRecord> => {
+  await ensureAccessRequestsTable();
+  const client = getAccessRequestsTableClient();
+  const entity = await client.getEntity<Record<string, unknown>>("requests", requestId).catch(() => null);
+  if (!entity) {
+    throw new AuthError("Access request not found", 404);
+  }
+
+  const request = mapEntityToAccessRequest(entity);
+  if (request.status === "approved") {
+    throw new AuthError("Request is already approved", 400);
+  }
+  if (request.status === "rejected") {
+    throw new AuthError("Cannot generate code for rejected request", 400);
+  }
+
+  if (request.generatedCode) {
+    return request;
+  }
+
+  let generatedCode = "";
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    const candidate = createAccessRequestCode();
+    try {
+      await createAccessCode(candidate, adminUserId, 1);
+      generatedCode = candidate;
+      break;
+    } catch (error) {
+      if (isAuthError(error) && error.status === 409) {
+        continue;
+      }
+      throw error;
+    }
+  }
+
+  if (!generatedCode) {
+    throw new AuthError("Failed to generate a unique access code", 500);
+  }
+
+  const now = new Date().toISOString();
+  await client.updateEntity(
+    {
+      partitionKey: "requests",
+      rowKey: request.id,
+      status: "code_generated",
+      generatedCode,
+      generatedCodeAt: now,
+      reviewedByUserId: adminUserId,
+      reviewedAt: now,
+      adminNotes: adminNotes?.trim() || request.adminNotes || "",
+      updatedAt: now,
+    },
+    "Merge"
+  );
+
+  const updatedEntity = await client.getEntity<Record<string, unknown>>("requests", request.id);
+  return mapEntityToAccessRequest(updatedEntity);
+};
+
+export const approveAccessRequest = async (
+  requestId: string,
+  adminUserId: string,
+  approvalEmailSentAt: string,
+  adminNotes?: string
+): Promise<AccessRequestRecord> => {
+  await ensureAccessRequestsTable();
+  const client = getAccessRequestsTableClient();
+  const entity = await client.getEntity<Record<string, unknown>>("requests", requestId).catch(() => null);
+  if (!entity) {
+    throw new AuthError("Access request not found", 404);
+  }
+
+  const request = mapEntityToAccessRequest(entity);
+  if (!request.generatedCode) {
+    throw new AuthError("Generate access code before approval", 400);
+  }
+
+  const now = new Date().toISOString();
+  await client.updateEntity(
+    {
+      partitionKey: "requests",
+      rowKey: request.id,
+      status: "approved",
+      reviewedByUserId: adminUserId,
+      reviewedAt: now,
+      approvalEmailSentAt,
+      adminNotes: adminNotes?.trim() || request.adminNotes || "",
+      updatedAt: now,
+    },
+    "Merge"
+  );
+
+  const updatedEntity = await client.getEntity<Record<string, unknown>>("requests", request.id);
+  return mapEntityToAccessRequest(updatedEntity);
+};
+
+export const rejectAccessRequest = async (
+  requestId: string,
+  adminUserId: string,
+  adminNotes?: string
+): Promise<AccessRequestRecord> => {
+  await ensureAccessRequestsTable();
+  const client = getAccessRequestsTableClient();
+  const entity = await client.getEntity<Record<string, unknown>>("requests", requestId).catch(() => null);
+  if (!entity) {
+    throw new AuthError("Access request not found", 404);
+  }
+
+  const request = mapEntityToAccessRequest(entity);
+  if (request.status === "approved") {
+    throw new AuthError("Approved requests cannot be rejected", 400);
+  }
+
+  const now = new Date().toISOString();
+  await client.updateEntity(
+    {
+      partitionKey: "requests",
+      rowKey: request.id,
+      status: "rejected",
+      reviewedByUserId: adminUserId,
+      reviewedAt: now,
+      adminNotes: adminNotes?.trim() || request.adminNotes || "",
+      updatedAt: now,
+    },
+    "Merge"
+  );
+
+  const updatedEntity = await client.getEntity<Record<string, unknown>>("requests", request.id);
+  return mapEntityToAccessRequest(updatedEntity);
+};
+
+const mapEntityToFeedback = (entity: Record<string, unknown>): FeedbackRecord => ({
+  id: String(entity.rowKey || ""),
+  userId: String(entity.userId || ""),
+  email: String(entity.email || "").toLowerCase(),
+  type: (String(entity.type || "feature_request") as FeedbackType),
+  title: String(entity.title || ""),
+  description: String(entity.description || ""),
+  category: String(entity.category || ""),
+  status: (String(entity.status || "new") as FeedbackStatus),
+  createdAt: String(entity.createdAt || new Date().toISOString()),
+  updatedAt: String(entity.updatedAt || new Date().toISOString()),
+});
+
+export const createFeedback = async (
+  userId: string,
+  email: string,
+  type: FeedbackType,
+  title: string,
+  description: string,
+  category: string
+): Promise<FeedbackRecord> => {
+  await ensureFeedbackTable();
+  const client = getFeedbackTableClient();
+  const id = randomUUID();
+  const now = new Date().toISOString();
+
+  const entity = {
+    partitionKey: "feedback",
+    rowKey: id,
+    userId,
+    email: normalizeEmail(email),
+    type,
+    title: title.trim(),
+    description: description.trim(),
+    category: category.trim(),
+    status: "new",
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  await client.createEntity(entity);
+  return mapEntityToFeedback(entity);
+};
+
+export const getFeedbackById = async (feedbackId: string): Promise<FeedbackRecord | null> => {
+  await ensureFeedbackTable();
+  const client = getFeedbackTableClient();
+  const entity = await client.getEntity<Record<string, unknown>>("feedback", feedbackId).catch(() => null);
+  if (!entity) {
+    return null;
+  }
+  return mapEntityToFeedback(entity);
+};
+
+export const listFeedbackForAdmin = async (options?: {
+  type?: FeedbackType;
+  status?: FeedbackStatus | "all";
+  search?: string;
+}): Promise<FeedbackListResult> => {
+  await ensureFeedbackTable();
+  const client = getFeedbackTableClient();
+
+  const requestedType = options?.type;
+  const requestedStatus = options?.status || "all";
+  const search = options?.search?.trim().toLowerCase() || "";
+
+  const entities = client.listEntities({
+    queryOptions: {
+      filter: "PartitionKey eq 'feedback'",
+    },
+  });
+
+  const allRecords: FeedbackRecord[] = [];
+  for await (const entity of entities) {
+    allRecords.push(mapEntityToFeedback(entity as Record<string, unknown>));
+  }
+
+  // Filter by type if specified
+  let filtered = requestedType ? allRecords.filter((f) => f.type === requestedType) : allRecords;
+
+  // Filter by status if specified
+  if (requestedStatus !== "all") {
+    filtered = filtered.filter((f) => f.status === requestedStatus);
+  }
+
+  // Filter by search term (title or description)
+  if (search) {
+    filtered = filtered.filter((f) => f.title.toLowerCase().includes(search) || f.description.toLowerCase().includes(search));
+  }
+
+  // Sort by created date (newest first)
+  filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+  const summary: FeedbackQueueSummary = {
+    total: allRecords.length,
+    new: allRecords.filter((f) => f.status === "new").length,
+    inReview: allRecords.filter((f) => f.status === "in_review").length,
+    resolved: allRecords.filter((f) => f.status === "resolved").length,
+    dismissed: allRecords.filter((f) => f.status === "dismissed").length,
+  };
+
+  return {
+    feedback: filtered,
+    summary,
+  };
+};
+
+export const updateFeedbackStatus = async (feedbackId: string, status: FeedbackStatus): Promise<FeedbackRecord> => {
+  await ensureFeedbackTable();
+  const client = getFeedbackTableClient();
+  const entity = await client.getEntity<Record<string, unknown>>("feedback", feedbackId).catch(() => null);
+  if (!entity) {
+    throw new AuthError("Feedback not found", 404);
+  }
+
+  const feedback = mapEntityToFeedback(entity);
+  const now = new Date().toISOString();
+
+  await client.updateEntity(
+    {
+      partitionKey: "feedback",
+      rowKey: feedback.id,
+      status,
+      updatedAt: now,
+    },
+    "Merge"
+  );
+
+  const updatedEntity = await client.getEntity<Record<string, unknown>>("feedback", feedback.id);
+  return mapEntityToFeedback(updatedEntity);
 };
 
 const buildInviteGrantSummary = (user: StoredUser): InviteGrantSummary => {

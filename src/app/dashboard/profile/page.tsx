@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
@@ -15,11 +15,13 @@ interface UserProfile {
 
 export default function ProfilePage() {
   const router = useRouter();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [name, setName] = useState("");
   const [profileIcon, setProfileIcon] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -44,6 +46,51 @@ export default function ProfilePage() {
 
     loadProfile();
   }, []);
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
+    if (!allowedTypes.includes(file.type)) {
+      setError("Only JPG, PNG, and WebP images are allowed");
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      setError("Image must be 5MB or less");
+      return;
+    }
+
+    setUploading(true);
+    setError(null);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const response = await fetch("/api/onboarding/upload-profile-image", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Failed to upload image");
+      }
+
+      const data = await response.json();
+      setProfileIcon(data.profileImageUrl);
+      setMessage("Image uploaded successfully! Click Save Profile to apply changes.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to upload image");
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  };
 
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -121,6 +168,28 @@ export default function ProfilePage() {
             <p className="text-sm text-[var(--text-secondary)]">Profile Picture</p>
           </div>
 
+          {/* File Upload */}
+          <div className="mb-8 text-center">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              onChange={handleFileUpload}
+              disabled={uploading}
+              className="hidden"
+              aria-label="Upload profile picture"
+            />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+              className="inline-block rounded-lg border border-[var(--accent)] bg-[var(--paper)] px-4 py-2 text-sm font-semibold text-[var(--accent)] hover:bg-[var(--accent)] hover:text-white disabled:opacity-50"
+            >
+              {uploading ? "Uploading..." : "Upload Photo"}
+            </button>
+            <p className="mt-2 text-xs text-[var(--text-secondary)]">JPG, PNG, or WebP • Max 5MB</p>
+          </div>
+
           {/* Avatar Color Presets */}
           <div className="mb-8 space-y-2">
             <p className="text-sm font-semibold">Quick Avatar Colors:</p>
@@ -174,7 +243,7 @@ export default function ProfilePage() {
             </div>
 
             <div>
-              <label className="block text-sm font-semibold mb-2">Custom Avatar URL (Optional)</label>
+              <label className="block text-sm font-semibold mb-2">Avatar (Optional - Upload or URL)</label>
               <input
                 type="url"
                 value={profileIcon}
@@ -182,7 +251,7 @@ export default function ProfilePage() {
                 placeholder="https://example.com/avatar.jpg"
                 className="w-full rounded-lg border border-[var(--line)] bg-white px-4 py-2 focus:border-[var(--accent)] focus:outline-none"
               />
-              <p className="mt-1 text-xs text-[var(--text-secondary)]">Or use the color buttons above to auto-generate</p>
+              <p className="mt-1 text-xs text-[var(--text-secondary)]">Or paste a direct image URL, or use the color buttons below</p>
             </div>
 
             <div className="flex gap-3 pt-4">

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useState } from "react";
 
 type CodeRecord = {
@@ -250,6 +251,21 @@ export default function AdminDashboardPage() {
       <p className="dash-kicker">Management</p>
       <h1 className="mt-2 text-3xl font-bold text-[var(--ink)]">System Management</h1>
       <p className="mt-2 text-sm text-[var(--muted)]">Manage access codes, invite capacity, creator metrics, and user lifecycle operations.</p>
+
+      <div className="mt-4">
+        <Link
+          href="/dashboard/admin/access-requests"
+          className="inline-flex items-center border border-[var(--accent-strong)] bg-[var(--accent)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.08em] text-white hover:bg-[var(--accent-strong)]"
+        >
+          Review Access Requests
+        </Link>
+        <Link
+          href="/dashboard/admin/feedback"
+          className="ml-2 inline-flex items-center border border-[var(--accent-strong)] bg-[var(--accent)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.08em] text-white hover:bg-[var(--accent-strong)]"
+        >
+          Review Feedback
+        </Link>
+      </div>
 
       <div className="mt-4 flex flex-wrap items-center gap-2">
         <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--muted)]">Creator Window</p>

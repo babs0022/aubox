@@ -5,6 +5,7 @@ import SidebarNav from "@/components/dashboard/SidebarNav";
 import UserMenu from "@/components/dashboard/UserMenu";
 import CollapsibleSidebar from "@/components/dashboard/CollapsibleSidebar";
 import HeaderCaseSwitcher from "@/components/dashboard/HeaderCaseSwitcher";
+import MobileAlert from "@/components/dashboard/MobileAlert";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const user = await getUserFromSession();
@@ -37,6 +38,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         </header>
 
         <section className="min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-6 sm:py-6">
+          <MobileAlert />
           <div className="mb-5 lg:hidden">
             <SidebarNav />
           </div>

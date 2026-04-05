@@ -38,34 +38,34 @@ export default function Home() {
   const operationalPillars = [
     {
       title: 'Reduce repetitive workload',
-      body: 'Aubox removes repeated tracing and evidence assembly tasks so analysts can focus on decisions and escalation quality.',
+      body: 'Aubox removes repeated tracing and evidence assembly work so you can focus on decisions and escalation quality.',
     },
     {
       title: 'Keep analyst control',
-      body: 'Automation supports your workflow, but final judgement stays with your team for attribution, confidence, and reporting decisions.',
+      body: 'Automation supports your workflow, but final judgement stays with you for attribution, confidence, and reporting decisions.',
     },
     {
       title: 'Ship case-ready outputs faster',
-      body: 'From wallet ingestion to reporting, Aubox keeps the workflow connected so outcomes are easier to share with compliance and legal stakeholders.',
+      body: 'From wallet ingestion to reporting, Aubox keeps your workflow connected so outcomes are easier to share with compliance and legal stakeholders.',
     },
   ];
 
   const quotes = [
     {
-      body: 'Aubox removed most of our repetitive tracing workload while keeping our investigators in control of every conclusion.',
-      author: 'Security Lead, Digital Asset Exchange',
+      body: 'Aubox removes repetitive tracing workload while you keep control over every final conclusion.',
+      author: 'Security Operations',
     },
     {
-      body: 'Our analysts now spend time on decisions, not data wrangling. Investigation throughput improved immediately.',
-      author: 'Head of Compliance, Fintech Infrastructure Team',
+      body: 'You spend more time on decisions and less on manual data wrangling, with faster investigation throughput.',
+      author: 'Compliance Operations',
     },
   ];
 
   const faqs = [
     {
-      question: 'Will Aubox replace my investigation team?',
+      question: 'Will Aubox replace your judgement?',
       answer:
-        'No. Aubox is designed to remove repetitive operational work so your team can focus on judgement, escalation, and final conclusions.',
+        'No. Aubox is designed to remove repetitive operational work so you can focus on judgement, escalation, and final conclusions.',
     },
     {
       question: 'What part of the workflow does Aubox automate?',
@@ -75,17 +75,17 @@ export default function Home() {
     {
       question: 'How fast can I move from alert to case output?',
       answer:
-        'Teams typically move from hours of manual assembly to a much faster review cycle because core data and evidence artifacts are pre-structured for you.',
+        'You can move from hours of manual assembly to a much faster review cycle because core data and evidence artifacts are pre-structured for you.',
     },
     {
-      question: 'Can Aubox outputs be used by compliance and legal teams?',
+      question: 'Can Aubox outputs be used for compliance and legal workflows?',
       answer:
         'Yes. Outputs are structured so you can hand them directly to compliance, legal, and incident response stakeholders without manual reformatting.',
     },
   ];
 
   return (
-    <main className="min-h-screen bg-[var(--paper)] pb-12">
+    <main className="min-h-screen bg-[var(--paper)]">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }}
@@ -121,8 +121,8 @@ export default function Home() {
             </a>
           </nav>
 
-          <a href={DASHBOARD_URL} className="button-secondary px-4 py-3">
-            Launch
+          <a href={`${DASHBOARD_URL}/request-access`} className="button-secondary px-4 py-3">
+            Request Access
           </a>
         </div>
       </header>
@@ -138,8 +138,8 @@ export default function Home() {
               Aubox automates the repetitive 70% of onchain investigation tasks: tracing, enrichment, and evidence assembly. You stay in control of the critical 30%: reasoning, prioritization, and final attribution.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
-              <a href={DASHBOARD_URL} className="button-primary">
-                Open Dashboard <span className="arrow">↗</span>
+              <a href={`${DASHBOARD_URL}/request-access`} className="button-primary">
+                Request Access <span className="arrow">↗</span>
               </a>
               <a href={`${DASHBOARD_URL}/guide`} className="button-secondary">
                 See Product Guide <span className="arrow">↗</span>
@@ -147,13 +147,13 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="md:col-span-5 flex flex-col overflow-hidden">
-            <div className="relative w-full bg-[var(--ink)] flex-1 min-h-[360px] border border-[var(--line-strong)]">
+          <div className="md:col-span-5 flex flex-col">
+            <div className="relative w-full aspect-[2/3] md:aspect-square lg:aspect-[4/3]">
               <Image
-                src="/images/workload-shift-model.svg"
-                alt="Workload Shift Model: Ingest → Auto-map → Prioritize → Export"
+                src="/images/workload-shift-model-transparent.png"
+                alt="Workload Shift Model"
                 fill
-                className="object-cover"
+                className="object-contain"
                 priority
               />
             </div>
@@ -279,10 +279,10 @@ export default function Home() {
 
       <section>
         <div className="page-shell px-4 py-14 sm:px-6 lg:px-8 lg:py-20">
-          <p className="kicker">Why Teams Choose Aubox</p>
+          <p className="kicker">Why Choose Aubox</p>
           <h2 className="section-title">Why Choose Aubox</h2>
           <p className="section-copy">
-            Built to help investigation teams move faster without sacrificing clarity, control, or evidentiary quality.
+            Built to help you move faster without sacrificing clarity, control, or evidentiary quality.
           </p>
 
           <div className="mt-10 grid gap-4 md:grid-cols-3">
@@ -303,61 +303,63 @@ export default function Home() {
             Ready to give investigators their time back?
           </h2>
           <p className="section-copy mx-auto">
-            Deploy Aubox to offload repetitive investigation work while your team leads the decisions that matter.
+            Deploy Aubox to offload repetitive investigation work while you lead the decisions that matter.
           </p>
           <div className="mt-8 flex flex-wrap justify-center gap-3">
-            <a href={`${DASHBOARD_URL}/signup`} className="button-primary">
+            <a href={`${DASHBOARD_URL}/request-access`} className="button-primary">
               Request Access <span className="arrow">↗</span>
             </a>
-            <a href={`${DASHBOARD_URL}/login`} className="button-secondary">
-              Sign In <span className="arrow">↗</span>
+            <a href={`${DASHBOARD_URL}/guide`} className="button-secondary">
+              See Product Guide <span className="arrow">↗</span>
             </a>
           </div>
         </div>
       </section>
 
-      <footer className="border-y border-[var(--line-strong)] bg-gradient-to-r from-[var(--ink)] to-[var(--accent-strong)] text-[var(--paper)]">
-        <div className="page-shell px-4 py-10 sm:px-6 lg:px-8">
-          <div className="grid gap-8 md:grid-cols-3 md:items-start">
-            <div className="flex flex-col gap-3">
-              <div className="flex items-center gap-3">
-                <Image
-                  src="/images/aubox-logo-dark.png"
-                  alt="Aubox"
-                  width={28}
-                  height={28}
-                  className="h-7 w-7 object-contain rounded-sm bg-[var(--paper)] p-0.5"
-                />
-                <p className="text-sm font-medium tracking-wide">Aubox</p>
-              </div>
-              <p className="text-sm text-[var(--paper)]/80">
-                Investigation intelligence for digital asset risk teams.
-              </p>
-            </div>
+      <footer className="border-y border-[var(--line-strong)] bg-[var(--accent)] text-[var(--paper)]">
+        <div className="page-shell">
+          <div className="h-10 border-b border-white/35 bg-[linear-gradient(90deg,transparent_0%,transparent_6%,#f5f2eb_6%,#f5f2eb_8%,transparent_8%,transparent_14%,#f5f2eb_14%,#f5f2eb_16%,transparent_16%,transparent_23%,#f5f2eb_23%,#f5f2eb_25%,transparent_25%,transparent_31%,#f5f2eb_31%,#f5f2eb_33%,transparent_33%,transparent_41%,#f5f2eb_41%,#f5f2eb_43%,transparent_43%,transparent_52%,#f5f2eb_52%,#f5f2eb_54%,transparent_54%,transparent_63%,#f5f2eb_63%,#f5f2eb_65%,transparent_65%,transparent_74%,#f5f2eb_74%,#f5f2eb_76%,transparent_76%,transparent_84%,#f5f2eb_84%,#f5f2eb_86%,transparent_86%,transparent_100%)]" />
 
-            <div>
-              <p className="text-xs uppercase tracking-[0.12em] text-[var(--paper)]/70">Product</p>
-              <div className="mt-4 flex flex-col gap-3 text-sm">
-                <a href={DASHBOARD_URL} className="hover:text-white transition-colors">Dashboard</a>
-                <a href={`${DASHBOARD_URL}/guide`} className="hover:text-white transition-colors">Guide</a>
-                <a href="#faq" className="hover:text-white transition-colors">FAQ</a>
-              </div>
+          <div className="px-4 py-16 text-center sm:px-6 lg:px-8 lg:py-20">
+            <div className="flex items-center justify-center gap-4">
+              <Image
+                src="/images/aubox-logo-dark.png"
+                alt="Aubox"
+                width={92}
+                height={92}
+                className="h-20 w-20 rounded-sm bg-[var(--paper)] p-1 object-contain sm:h-24 sm:w-24"
+              />
+              <p className="text-7xl font-semibold tracking-tight sm:text-8xl lg:text-9xl">aubox</p>
             </div>
-
-            <div>
-              <p className="text-xs uppercase tracking-[0.12em] text-[var(--paper)]/70">Support</p>
-              <div className="mt-4 flex flex-col gap-3 text-sm">
-                <a href="mailto:support@aubox.app" className="hover:text-white transition-colors">
-                  support@aubox.app
-                </a>
-                <a href={`${DASHBOARD_URL}/login`} className="hover:text-white transition-colors">Sign In</a>
-                <a href={`${DASHBOARD_URL}/signup`} className="hover:text-white transition-colors">Request Access</a>
-              </div>
-            </div>
+            <p className="mt-4 font-mono text-xs uppercase tracking-[0.16em] text-[var(--paper)]/75">
+              You investigate. Aubox handles the repetitive workload.
+            </p>
+            <p className="mt-6 text-xs text-[var(--paper)]/65">© 2026 Aubox. All rights reserved.</p>
           </div>
 
-          <div className="mt-10 border-t border-white/20 pt-5 text-xs text-[var(--paper)]/70">
-            © 2026 Aubox. Built to offload repetitive investigation work, not replace investigators.
+          <div className="grid border-t border-white/35 md:grid-cols-3">
+            <div className="border-b border-white/30 px-5 py-7 md:border-b-0 md:border-r md:border-white/30">
+              <p className="font-mono text-xs uppercase tracking-[0.14em] text-[var(--paper)]/75">Product</p>
+              <div className="mt-5 flex flex-col gap-3 text-sm">
+                <a href={DASHBOARD_URL} className="w-max border-b border-dashed border-white/50 pb-0.5 hover:text-white">Dashboard ↗</a>
+              </div>
+            </div>
+
+            <div className="border-b border-white/30 px-5 py-7 md:border-b-0 md:border-r md:border-white/30">
+              <p className="font-mono text-xs uppercase tracking-[0.14em] text-[var(--paper)]/75">Support & Resources</p>
+              <div className="mt-5 flex flex-col gap-3 text-sm">
+                <a href="mailto:support@aubox.app" className="w-max border-b border-dashed border-white/50 pb-0.5 hover:text-white">support@aubox.app ↗</a>
+                <a href={`${DASHBOARD_URL}/guide`} className="w-max border-b border-dashed border-white/50 pb-0.5 hover:text-white">Guide ↗</a>
+                <a href="#faq" className="w-max border-b border-dashed border-white/50 pb-0.5 hover:text-white">FAQ ↗</a>
+              </div>
+            </div>
+
+            <div className="px-5 py-7">
+              <p className="font-mono text-xs uppercase tracking-[0.14em] text-[var(--paper)]/75">Access</p>
+              <div className="mt-5 flex flex-col gap-3 text-sm">
+                <a href={`${DASHBOARD_URL}/request-access`} className="w-max border-b border-dashed border-white/50 pb-0.5 hover:text-white">Request Access ↗</a>
+              </div>
+            </div>
           </div>
         </div>
       </footer>

@@ -151,8 +151,8 @@ export default function FundFlowPage() {
           nodes: result.nodes,
           edges: result.edges,
         });
-        setSummary(result.summary);
-        setDebugInfo(result.debug);
+        setSummary(result.summary ?? null);
+        setDebugInfo(result.debug ?? null);
 
         console.log("[fund-flow] Analysis complete", {
           nodes: result.nodes.length,

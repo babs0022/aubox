@@ -10,6 +10,11 @@ const nextConfig: NextConfig = {
         hostname: "aubox.blob.core.windows.net",
         pathname: "/**",
       },
+      {
+        protocol: "https",
+        hostname: "ui-avatars.com",
+        pathname: "/**",
+      },
     ],
   },
   async rewrites() {

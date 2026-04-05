@@ -68,11 +68,16 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
+    // Always preserve onboarding state from current session token
+    // Profile updates should NEVER reset onboarding/access flags
     const token = await createToken(
       updatedUser.id,
       updatedUser.email,
       updatedUser.username,
-      updatedUser.name
+      updatedUser.name,
+      user.accessGranted === true,
+      user.onboardingCompleted === true,
+      user.isAdmin === true
     );
 
     const response = NextResponse.json({

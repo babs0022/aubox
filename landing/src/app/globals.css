@@ -192,6 +192,103 @@
   .module-row:last-child {
     @apply border-b-0;
   }
+
+  .hero-workload-art {
+    position: relative;
+    min-height: 360px;
+    border: 1px solid var(--line-strong);
+    background: linear-gradient(180deg, #ecebe6 0%, #d7d5cd 56%, #c6c4bc 100%);
+    overflow: hidden;
+    isolation: isolate;
+    display: flex;
+    align-items: stretch;
+    padding: clamp(1.1rem, 2.5vw, 2rem);
+  }
+
+  .hero-workload-art::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(18, 18, 18, 0.13) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(18, 18, 18, 0.13) 1px, transparent 1px);
+    background-size: 44px 44px;
+    opacity: 0.52;
+    pointer-events: none;
+  }
+
+  .hero-workload-dither {
+    position: absolute;
+    inset: 0;
+    z-index: 4;
+    background-image:
+      linear-gradient(0deg, rgba(0, 0, 0, 0.3) 50%, transparent 50%),
+      linear-gradient(90deg, rgba(0, 0, 0, 0.3) 50%, transparent 50%),
+      linear-gradient(0deg, rgba(255, 255, 255, 0.24) 50%, transparent 50%),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.24) 50%, transparent 50%);
+    background-size: 4px 4px, 4px 4px, 8px 8px, 8px 8px;
+    background-position: 0 0, 0 0, 2px 2px, 2px 2px;
+    opacity: 0.95;
+    mix-blend-mode: multiply;
+    pointer-events: none;
+  }
+
+  .hero-workload-core {
+    position: relative;
+    z-index: 2;
+    width: 100%;
+    min-height: 320px;
+  }
+
+  .hero-workload-minus {
+    position: absolute;
+    left: 0;
+    bottom: clamp(0.2rem, 1vw, 0.6rem);
+    font-size: clamp(7.4rem, 20vw, 12.2rem);
+    font-weight: 900;
+    letter-spacing: -0.055em;
+    line-height: 0.72;
+    transform: scaleY(1.26);
+    transform-origin: left bottom;
+    color: transparent;
+    -webkit-text-fill-color: transparent;
+    background-image:
+      linear-gradient(180deg, #faf9f5 0%, #eceae3 100%),
+      linear-gradient(0deg, rgba(15, 15, 15, 0.52) 50%, transparent 50%),
+      linear-gradient(90deg, rgba(15, 15, 15, 0.52) 50%, transparent 50%);
+    background-size: 100% 100%, 4px 4px, 4px 4px;
+    -webkit-background-clip: text;
+    background-clip: text;
+    text-shadow: 0 8px 18px rgba(0, 0, 0, 0.2);
+  }
+
+  .hero-workload-foreground {
+    position: absolute;
+    right: clamp(0.65rem, 1.8vw, 1.1rem);
+    bottom: clamp(1rem, 2.3vw, 1.8rem);
+    z-index: 5;
+    display: flex;
+    align-items: flex-end;
+    justify-content: flex-end;
+  }
+
+  .hero-workload-label {
+    font-family: 'Roboto Mono', monospace;
+    font-size: clamp(0.9rem, 1.6vw, 1.2rem);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: transparent;
+    -webkit-text-fill-color: transparent;
+    background-image:
+      linear-gradient(180deg, #fbfaf7 0%, #ebe8e1 100%),
+      linear-gradient(0deg, rgba(15, 15, 15, 0.5) 50%, transparent 50%),
+      linear-gradient(90deg, rgba(15, 15, 15, 0.5) 50%, transparent 50%);
+    background-size: 100% 100%, 4px 4px, 4px 4px;
+    -webkit-background-clip: text;
+    background-clip: text;
+    opacity: 1;
+  }
 }
 
 @keyframes reveal-up {

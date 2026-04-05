@@ -1,10 +1,13 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { getActiveCaseId } from "@/lib/case-client";
 import { usePathname } from "next/navigation";
 import { useActiveCaseId } from "@/lib/use-active-case";
 import { useSidebarState } from "@/components/dashboard/sidebar-state";
+import { FeedbackModal } from "@/components/dashboard/FeedbackModal";
+import { FeedbackType } from "@/lib/azure";
 
 type IconProps = {
   className?: string;
@@ -98,6 +101,25 @@ const CasesIcon = ({ className }: IconProps) => (
   </svg>
 );
 
+const LightBulbIcon = ({ className }: IconProps) => (
+  <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <path d="M15 12c0-1.7-1.3-3-3-3s-3 1.3-3 3" />
+    <path d="M9 18h6" />
+    <path d="M10 21h4" />
+    <path d="M12 3v2" />
+    <path d="M4.22 4.22l1.41 1.41" />
+    <path d="M19.78 4.22l-1.41 1.41" />
+  </svg>
+);
+
+const BugIcon = ({ className }: IconProps) => (
+  <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <path d="M12 2v4m0 10v4" />
+    <path d="M6.22 6.22l2.83 2.83m4.9 4.9l2.83 2.83" />
+    <path d="M17.78 6.22l-2.83 2.83m-4.9 4.9l-2.83 2.83" />
+  </svg>
+);
+
 type NavItem = {
   href: string;
   label: string;
@@ -122,6 +144,9 @@ const resourceItems: NavItem[] = [
 ];
 
 export default function SidebarNav() {
+  const [feedbackModalOpen, setFeedbackModalOpen] = useState(false);
+  const [feedbackType, setFeedbackType] = useState<FeedbackType>("feature_request");
+
   const pathname = usePathname();
   const { collapsed } = useSidebarState();
   const activeCaseIdHook = useActiveCaseId();
@@ -140,6 +165,11 @@ export default function SidebarNav() {
     return `dash-nav-link ${isActive ? "dash-nav-link-active" : ""} group transition ${
       collapsed ? "justify-center px-2 py-2" : "gap-2 px-3 py-2"
     }`;
+  };
+
+  const handleFeedbackClick = (type: FeedbackType) => {
+    setFeedbackType(type);
+    setFeedbackModalOpen(true);
   };
 
   return (
@@ -174,7 +204,29 @@ export default function SidebarNav() {
         </nav>
       </div>
 
-      <div className="mt-auto pt-4">
+      <div className="mt-auto flex flex-col gap-2 border-t border-[var(--border)] pt-4 pb-2">
+        <button
+          onClick={() => handleFeedbackClick("feature_request")}
+          className={`dash-frame-soft block text-[var(--muted)] transition hover:bg-white hover:text-[var(--ink)] ${
+            collapsed ? "flex justify-center px-2 py-2" : "flex items-center gap-2 px-3 py-2 text-xs"
+          }`}
+          title="Request a feature"
+          aria-label="Request a feature"
+        >
+          <LightBulbIcon className="h-4 w-4 shrink-0" />
+          {!collapsed ? <span>Feature Request</span> : null}
+        </button>
+        <button
+          onClick={() => handleFeedbackClick("bug_report")}
+          className={`dash-frame-soft block text-[var(--muted)] transition hover:bg-white hover:text-[var(--ink)] ${
+            collapsed ? "flex justify-center px-2 py-2" : "flex items-center gap-2 px-3 py-2 text-xs"
+          }`}
+          title="Report a bug"
+          aria-label="Report a bug"
+        >
+          <BugIcon className="h-4 w-4 shrink-0" />
+          {!collapsed ? <span>Report a Bug</span> : null}
+        </button>
         <a
           href={supportHref}
           className={`dash-frame-soft block text-[var(--muted)] transition hover:bg-white hover:text-[var(--ink)] ${
@@ -186,6 +238,12 @@ export default function SidebarNav() {
           {collapsed ? "Support" : "Need help? Contact support"}
         </a>
       </div>
+
+      <FeedbackModal
+        open={feedbackModalOpen}
+        type={feedbackType}
+        onClose={() => setFeedbackModalOpen(false)}
+      />
     </aside>
   );
 }

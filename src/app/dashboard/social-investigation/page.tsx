@@ -162,13 +162,13 @@ export default function SocialInvestigationPage() {
 
     try {
       const payload = {
-        query: form.query,
-        entities: splitCsv(form.entities),
-        hashtags: splitCsv(form.hashtags),
-        tickers: splitCsv(form.tickers),
-        usernames: splitCsv(form.usernames),
-        user: form.user.trim(),
-        tags: splitCsv(form.tags),
+        query: form.query.trim() || undefined,
+        entities: splitCsv(form.entities) || undefined,
+        hashtags: splitCsv(form.hashtags) || undefined,
+        tickers: splitCsv(form.tickers) || undefined,
+        usernames: splitCsv(form.usernames) || undefined,
+        user: form.user.trim() || undefined,
+        tags: splitCsv(form.tags) || undefined,
         sort: form.sort,
         limit: form.limit,
       };
@@ -295,28 +295,6 @@ export default function SocialInvestigationPage() {
               <p className="mt-1 text-xs text-[var(--muted)]">Saved {savedArtifacts.length} term(s) as case artifacts.</p>
             ) : null}
           </div>
-
-          {response.diagnostics ? (
-            <div className="rounded-xl border border-[var(--line)] bg-white p-4">
-              <p className="text-xs uppercase tracking-[0.1em] text-[var(--muted)]">deSearch Diagnostics</p>
-              <p className="mt-2 text-xs text-[var(--muted)]">Strategy: {response.diagnostics.strategy}</p>
-              <p className="mt-1 text-xs text-[var(--muted)]">
-                Selected route: {response.diagnostics.selectedRoute ? `${response.diagnostics.selectedRoute.method} ${response.diagnostics.selectedRoute.path}` : "none"}
-              </p>
-              <p className="mt-1 text-xs text-[var(--muted)]">Request attempts: {response.diagnostics.attempts.length}</p>
-              <div className="mt-3 max-h-56 overflow-auto rounded-lg border border-[var(--line)] bg-[var(--paper)] p-2">
-                {response.diagnostics.attempts.length > 0 ? (
-                  response.diagnostics.attempts.map((attempt, index) => (
-                    <p key={`${attempt.method}_${attempt.path}_${index}`} className="font-mono text-[11px] text-[var(--ink)]">
-                      {attempt.method} {attempt.path} status={attempt.status ?? "n/a"}
-                    </p>
-                  ))
-                ) : (
-                  <p className="text-xs text-[var(--muted)]">No request attempts recorded.</p>
-                )}
-              </div>
-            </div>
-          ) : null}
 
           <div className="rounded-xl border border-[var(--line)] bg-white p-4">
             <p className="text-xs uppercase tracking-[0.1em] text-[var(--muted)]">Top Posts</p>
