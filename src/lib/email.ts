@@ -231,7 +231,7 @@ export const sendAccessApprovalEmail = async ({
 
 const buildPasswordResetEmail = (name: string, resetToken: string): { html: string; text: string } => {
   const appUrl = getBaseUrl();
-  const resetLink = `${appUrl}/reset-password?token=${encodeURIComponent(resetToken)}`;
+  const resetLink = `${appUrl}/reset-password/${encodeURIComponent(resetToken)}`;
   const safeName = escapeHtml(name);
 
   const html = `
