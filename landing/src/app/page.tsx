@@ -354,10 +354,28 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="px-5 py-7">
+            <div className="border-b border-white/30 px-5 py-7 md:border-b-0 md:border-r md:border-white/30">
               <p className="font-mono text-xs uppercase tracking-[0.14em] text-[var(--paper)]/75">Access</p>
               <div className="mt-5 flex flex-col gap-3 text-sm">
                 <a href={`${DASHBOARD_URL}/request-access`} className="w-max border-b border-dashed border-white/50 pb-0.5 hover:text-white">Request Access ↗</a>
+              </div>
+            </div>
+
+            <div className="px-5 py-7">
+              <p className="font-mono text-xs uppercase tracking-[0.14em] text-[var(--paper)]/75">Connect</p>
+              <div className="mt-5 flex flex-col gap-3 text-sm">
+                <a
+                  href="https://x.com/auboxapp"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex w-max items-center gap-2 border-b border-dashed border-white/50 pb-0.5 hover:text-white"
+                >
+                  <span aria-hidden="true" className="inline-flex h-4 w-4 items-center justify-center text-[0.7rem] font-bold leading-none">
+                    X
+                  </span>
+                  <span>@auboxapp</span>
+                  <span aria-hidden="true">↗</span>
+                </a>
               </div>
             </div>
           </div>
