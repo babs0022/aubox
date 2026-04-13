@@ -16,9 +16,10 @@ const jetBrainsMono = JetBrains_Mono({
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
-  title: "Aubox app",
+  title: "Aubox | Investigation Operations Dashboard",
   description:
-    "Manual, investigator-first onchain research cockpit for tracing funds, clustering entities, and exporting evidence.",
+    "Investigation operations dashboard for onchain profiling, fund tracing, entity clustering, and structured evidence workflows.",
+  applicationName: "Aubox",
   icons: {
     icon: [
       { url: "/aubox-logo-dark.png", type: "image/png" },
@@ -28,9 +29,9 @@ export const metadata: Metadata = {
     apple: "/aubox-logo-dark.png",
   },
   openGraph: {
-    title: "Aubox app",
+    title: "Aubox | Investigation Operations Dashboard",
     description:
-      "Manual, investigator-first onchain research cockpit for tracing funds, clustering entities, and exporting evidence.",
+      "Run investigator-led workflows for address intelligence, tracing, clustering, and reporting in one dashboard.",
     type: "website",
     url: siteUrl,
     images: [
@@ -38,15 +39,15 @@ export const metadata: Metadata = {
         url: "/opengraph-image",
         width: 1200,
         height: 630,
-        alt: "Aubox app",
+        alt: "Aubox | Investigation Operations Dashboard",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Aubox app",
+    title: "Aubox | Investigation Operations Dashboard",
     description:
-      "Manual, investigator-first onchain research cockpit for tracing funds, clustering entities, and exporting evidence.",
+      "Investigator-led onchain workflows for profiling, tracing, clustering, and structured reporting.",
     images: ["/opengraph-image"],
   },
 };

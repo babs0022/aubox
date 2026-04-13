@@ -3,18 +3,19 @@ import './globals.css';
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://aubox.app'),
-  title: 'Aubox | Forensic Intelligence Platform',
+  title: 'Aubox | Investigation Operations Platform',
   description:
-    'Aubox is built to lift 70% of repetitive onchain investigation workload while investigators retain full control of critical decisions and attribution.',
+    'Aubox helps investigation teams accelerate onchain profiling, tracing, clustering, and OSINT correlation with structured evidence workflows.',
+  applicationName: 'Aubox',
   icons: {
     icon: '/images/aubox-logo-dark.png',
     shortcut: '/images/aubox-logo-dark.png',
     apple: '/images/aubox-logo-dark.png',
   },
   openGraph: {
-    title: 'Aubox | Forensic Intelligence Platform',
+    title: 'Aubox | Investigation Operations Platform',
     description:
-      'Built to offload repetitive investigation work, not replace investigators. Lift 70% of process overhead and speed up case outcomes with Aubox.',
+      'Run faster onchain investigations with structured workflows for address intelligence, fund tracing, flow reconstruction, and defensible reporting.',
     type: 'website',
     url: 'https://aubox.app',
     images: [
@@ -22,15 +23,15 @@ export const metadata: Metadata = {
         url: '/opengraph-image',
         width: 1200,
         height: 630,
-        alt: 'Aubox | Forensic Intelligence Platform',
+        alt: 'Aubox | Investigation Operations Platform',
       },
     ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Aubox | Forensic Intelligence Platform',
+    title: 'Aubox | Investigation Operations Platform',
     description:
-      'Built to offload repetitive investigation work, not replace investigators.',
+      'Accelerate onchain investigations with structured, team-ready evidence workflows.',
     images: ['/opengraph-image'],
   },
 };

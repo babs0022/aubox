@@ -3,7 +3,46 @@ import Image from 'next/image';
 
 const DASHBOARD_URL = 'https://dashboard.aubox.app';
 
+type UseCase = {
+  title: string;
+  body: string;
+  stat: string;
+  variant: 'address' | 'trace' | 'flow' | 'cluster' | 'token' | 'osint';
+};
+
+type SceneDetail = {
+  label: string;
+  points: [string, string, string];
+};
+
 export default function Home() {
+    const sceneDetails: Record<UseCase['variant'], SceneDetail> = {
+      address: {
+        label: 'Address Query',
+        points: ['Wallet Profile', 'Counterparties', 'Risk Context'],
+      },
+      trace: {
+        label: 'Funds Trace',
+        points: ['Cross-Chain Hops', 'Priority Paths', 'Escalation Links'],
+      },
+      flow: {
+        label: 'Flow Analysis',
+        points: ['Deep Patterns', 'Timeline View', 'Evidence Steps'],
+      },
+      cluster: {
+        label: 'Address Cluster',
+        points: ['Entity Grouping', 'Behavior Links', 'Shared Signals'],
+      },
+      token: {
+        label: 'Token Movement',
+        points: ['Transfer Patterns', 'Concentration Shifts', 'Exposure Signals'],
+      },
+      osint: {
+        label: 'OSINT Correlation',
+        points: ['Onchain Data', 'Offchain Intel', 'Attribution Context'],
+      },
+    };
+
   const organizationJsonLd = {
     '@context': 'https://schema.org',
     '@type': 'Organization',
@@ -12,52 +51,76 @@ export default function Home() {
     logo: 'https://aubox.app/images/aubox-logo-dark.png',
   };
 
-  const valueProps = [
+  const useCases: Array<UseCase> = [
     {
-      imagePath: '/images/module-01-collection.svg',
-      title: 'You Offload Evidence Collection',
-      body: 'Aubox auto-collects traces, counterparties, and exposure artifacts so you stop spending hours on repetitive evidence gathering.',
+      title: 'Address Intelligence',
+      body: 'Query any address profile with contextual wallet behavior, counterparties, and linked investigative clues in one workflow.',
+      stat: 'Profile in seconds',
+      variant: 'address',
     },
     {
-      imagePath: '/images/module-02-reconstruction.svg',
-      title: 'You Reconstruct Flows Faster',
-      body: 'You map complex cross-chain movement paths in minutes, then use your time for judgement calls and escalation decisions.',
+      title: 'Rapid Fund Tracing',
+      body: 'Trace funds in seconds across hops and chains to quickly identify key movement paths and escalation points.',
+      stat: 'Fast path mapping',
+      variant: 'trace',
     },
     {
-      imagePath: '/images/module-03-attribution.svg',
-      title: 'You Stay in Control of Attribution',
-      body: 'Aubox generates entity suggestions and risk signals, but you approve what is real before anything becomes evidence.',
+      title: 'Flow Reconstruction',
+      body: 'Run deeper analysis on fund flows and reconstruct case timelines with clear evidence progression.',
+      stat: 'Timeline-first view',
+      variant: 'flow',
     },
     {
-      imagePath: '/images/module-04-reporting.svg',
-      title: 'You Deliver Case-Ready Output',
-      body: 'You turn investigation state into clear evidence packages for compliance, legal, and incident response without manual stitching.',
+      title: 'Entity Clustering',
+      body: 'Cluster related addresses into coherent entities so teams can reason about behavior, not isolated wallets.',
+      stat: 'Relationship graphs',
+      variant: 'cluster',
+    },
+    {
+      title: 'Token Movement Analysis',
+      body: 'Analyze token movement patterns, concentration shifts, and transfer behavior for sharper risk and exposure decisions.',
+      stat: 'Token-level signals',
+      variant: 'token',
+    },
+    {
+      title: 'Onchain + OSINT Correlation',
+      body: 'Combine onchain evidence with OSINT and offchain context to support stronger attribution and reporting confidence.',
+      stat: 'Cross-source context',
+      variant: 'osint',
     },
   ];
 
-  const operationalPillars = [
+  const builtForProfiles = [
     {
-      title: 'Reduce repetitive workload',
-      body: 'Aubox removes repeated tracing and evidence assembly work so you can focus on decisions and escalation quality.',
+      title: 'Investigation teams',
+      body: 'Teams tracing wallet activity, counterparties, and movement paths across multiple chains.',
     },
     {
-      title: 'Keep analyst control',
-      body: 'Automation supports your workflow, but final judgement stays with you for attribution, confidence, and reporting decisions.',
+      title: 'Compliance and AML operations',
+      body: 'Analysts who need defensible case files, reviewable evidence, and clear escalation history.',
     },
     {
-      title: 'Ship case-ready outputs faster',
-      body: 'From wallet ingestion to reporting, Aubox keeps your workflow connected so outcomes are easier to share with compliance and legal stakeholders.',
+      title: 'Private investigators',
+      body: 'Independent or boutique investigators producing client-ready forensic outputs and timelines.',
+    },
+    {
+      title: 'Security and incident response',
+      body: 'Teams handling exploit drains, suspicious flow monitoring, and post-incident analysis.',
     },
   ];
 
-  const quotes = [
+  const whyCare = [
     {
-      body: 'Aubox removes repetitive tracing workload while you keep control over every final conclusion.',
-      author: 'Security Operations',
+      title: 'Increase case throughput',
+      body: 'Move investigations from fragmented manual steps into one continuous workflow that shortens time-to-output.',
     },
     {
-      body: 'You spend more time on decisions and less on manual data wrangling, with faster investigation throughput.',
-      author: 'Compliance Operations',
+      title: 'Improve decision quality',
+      body: 'Teams keep control of judgement while gaining cleaner, faster context for escalation and attribution decisions.',
+    },
+    {
+      title: 'Deliver defensible evidence',
+      body: 'Generate structured artifacts and case narratives that are easier to share across compliance, legal, and leadership.',
     },
   ];
 
@@ -65,24 +128,62 @@ export default function Home() {
     {
       question: 'Will Aubox replace your judgement?',
       answer:
-        'No. Aubox is designed to remove repetitive operational work so you can focus on judgement, escalation, and final conclusions.',
+        'No. Aubox is designed to support investigator workflows while keeping final judgement and attribution decisions with your team.',
     },
     {
-      question: 'What part of the workflow does Aubox automate?',
+      question: 'How does Aubox create value for investigation teams?',
       answer:
-        'Aubox automates high-volume steps like trace collection, path reconstruction, enrichment, and evidence packaging while you remain in control of decision points.',
+        'Aubox reduces repetitive workflow overhead across profiling, tracing, enrichment, and reporting so teams can focus on high-value decisions and escalation quality.',
     },
     {
-      question: 'How fast can I move from alert to case output?',
+      question: 'Can Aubox support private investigators and client-facing reporting?',
       answer:
-        'You can move from hours of manual assembly to a much faster review cycle because core data and evidence artifacts are pre-structured for you.',
+        'Yes. Aubox helps investigators organize findings into structured, shareable outputs for client updates, legal review, or incident stakeholders.',
     },
     {
-      question: 'Can Aubox outputs be used for compliance and legal workflows?',
+      question: 'How are use cases priced?',
       answer:
-        'Yes. Outputs are structured so you can hand them directly to compliance, legal, and incident response stakeholders without manual reformatting.',
+        'Pricing combines investigation case capacity, unified storage, and feature usage credits. This lets teams scale based on actual operational workload.',
+    },
+    {
+      question: 'Can Aubox outputs be used in compliance and legal workflows?',
+      answer:
+        'Yes. The platform is built for structured evidence workflows, making it easier to share case artifacts with compliance, legal, and incident response functions.',
+    },
+    {
+      question: 'How quickly can teams start using Aubox?',
+      answer:
+        'Teams can begin with guided onboarding and start running real investigations quickly, then expand capacity through pricing tiers as workflows scale.',
     },
   ];
+
+  const renderUseCaseScene = (variant: UseCase['variant']) => {
+    const detail = sceneDetails[variant];
+
+    return (
+      <div className={`usecase-panel panel-${variant}`} aria-hidden="true">
+        <div className="panel-dots" />
+        <div className="panel-ring" />
+        <div className="panel-node panel-node-a" />
+        <div className="panel-node panel-node-b" />
+        <div className="panel-node panel-node-c" />
+        <div className="panel-node panel-node-d" />
+        <div className="panel-node panel-node-e" />
+        <div className="panel-node panel-node-f" />
+        <div className="panel-hub-wrap">
+          <span className="panel-hub">{detail.label}</span>
+        </div>
+        <ul className="panel-list">
+          {detail.points.map((point) => (
+            <li key={point} className="panel-item">
+              {point}
+            </li>
+          ))}
+        </ul>
+      </div>
+    );
+  };
+
 
   return (
     <main className="min-h-screen bg-[var(--paper)]">
@@ -107,11 +208,17 @@ export default function Home() {
             <Link href="#overview" className="nav-link">
               Overview
             </Link>
-            <Link href="#workflow" className="nav-link">
-              Workflow
+            <Link href="#use-cases" className="nav-link">
+              Use Cases
             </Link>
-            <Link href="#proof" className="nav-link">
-              Proof
+            <Link href="#built-for" className="nav-link">
+              Built For
+            </Link>
+            <Link href="#why-care" className="nav-link">
+              Why It Matters
+            </Link>
+            <Link href="/pricing" className="nav-link">
+              Pricing
             </Link>
             <Link href="#faq" className="nav-link">
               FAQ
@@ -130,12 +237,12 @@ export default function Home() {
       <section className="reveal-up" id="overview">
         <div className="page-shell grid gap-10 px-4 py-14 sm:px-6 md:grid-cols-12 lg:px-8 lg:py-20">
           <div className="md:col-span-7">
-            <p className="kicker">Forensic Intelligence Platform</p>
+            <p className="kicker">Investigation Operations Platform</p>
             <h1 className="mt-5 text-4xl font-semibold leading-tight sm:text-5xl lg:text-6xl">
-              Built to Lift 70% of Investigation Workload, Not Replace Investigators.
+              Accelerate onchain investigations with stronger evidence workflows.
             </h1>
             <p className="section-copy">
-              Aubox automates the repetitive 70% of onchain investigation tasks: tracing, enrichment, and evidence assembly. You stay in control of the critical 30%: reasoning, prioritization, and final attribution.
+              Aubox helps teams run faster profiling, tracing, clustering, token analysis, and OSINT-supported investigations without sacrificing analyst-controlled decisions.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <a href={`${DASHBOARD_URL}/request-access`} className="button-primary">
@@ -161,132 +268,63 @@ export default function Home() {
         </div>
       </section>
 
-      <section>
-        <div className="page-shell grid grid-cols-1 border-t border-[var(--line-strong)] md:grid-cols-3">
-          <div className="metric-cell">
-            <p className="kicker">Manual Workload Lifted</p>
-            <p className="mt-3 text-4xl font-semibold">70%</p>
-          </div>
-          <div className="metric-cell">
-            <p className="kicker">Investigator Control Retained</p>
-            <p className="mt-3 text-4xl font-semibold">100%</p>
-          </div>
-          <div className="metric-cell">
-            <p className="kicker">Time-to-Case Output</p>
-            <p className="mt-3 text-4xl font-semibold">Hours</p>
-          </div>
-        </div>
-      </section>
-
-      <section id="workflow">
+      <section id="use-cases">
         <div className="page-shell px-4 py-14 sm:px-6 lg:px-8 lg:py-20">
-          <p className="kicker">Operational Workflow</p>
-          <h2 className="section-title">You Automate the Busywork and Keep the Decisions.</h2>
+          <p className="kicker">Use Cases</p>
+          <h2 className="section-title">Core investigation workflows</h2>
           <p className="section-copy">
-            Each module removes a manual bottleneck so you can focus on signal quality, escalation, and evidentiary confidence.
+            Move from fragmented steps to a single operational flow across the workflows that matter most to investigation teams.
           </p>
 
-          <div className="mt-12 flex flex-col gap-10">
-            {valueProps.map((item, index) => (
+          <div className="mt-12 flex flex-col gap-20 md:gap-24">
+            {useCases.map((useCase, index) => (
               <article
-                className="grid md:grid-cols-2 gap-8 md:gap-10 items-stretch border border-[var(--line-strong)] bg-[var(--panel)] p-6 md:p-8"
-                key={item.title}
+                key={useCase.title}
+                className="grid items-start gap-10 py-4 md:gap-20 md:py-8 md:grid-cols-[minmax(0,1fr)_minmax(500px,1.15fr)]"
               >
-                {/* Determine if this module is odd (text left) or even (text right) */}
-                {index % 2 === 0 ? (
-                  <>
-                    {/* Text Left, Image Right */}
-                    <div className="order-1 flex flex-col justify-center">
-                      <p className="kicker">Module</p>
-                      <h3 className="mt-3 text-2xl font-semibold">{item.title}</h3>
-                      <p className="muted mt-4 text-sm leading-7">{item.body}</p>
-                    </div>
-                    <div className="order-2 relative w-full h-[320px] md:h-[360px] bg-[var(--ink)] border border-[var(--line-strong)]">
-                      <Image
-                        src={item.imagePath}
-                        alt={item.title}
-                        fill
-                        className="object-cover"
-                      />
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    {/* Image Left, Text Right */}
-                    <div className="order-1 relative w-full h-[320px] md:h-[360px] bg-[var(--ink)] border border-[var(--line-strong)] md:order-1">
-                      <Image
-                        src={item.imagePath}
-                        alt={item.title}
-                        fill
-                        className="object-cover"
-                      />
-                    </div>
-                    <div className="order-2 md:order-2 flex flex-col justify-center">
-                      <p className="kicker">Module</p>
-                      <h3 className="mt-3 text-2xl font-semibold">{item.title}</h3>
-                      <p className="muted mt-4 text-sm leading-7">{item.body}</p>
-                    </div>
-                  </>
-                )}
+                <div className={`${index % 2 === 1 ? 'md:order-2' : ''}`}>
+                  <p className="kicker">{useCase.stat}</p>
+                  <h3 className="mt-4 text-2xl font-semibold leading-snug md:text-3xl">{useCase.title}</h3>
+                  <p className="muted mt-6 max-w-xl text-base leading-8">{useCase.body}</p>
+                </div>
+                <div className={`${index % 2 === 1 ? 'md:order-1' : ''}`}>
+                  {renderUseCaseScene(useCase.variant)}
+                </div>
               </article>
             ))}
           </div>
         </div>
       </section>
 
-      <section id="proof">
+      <section id="built-for">
         <div className="page-shell px-4 py-14 sm:px-6 lg:px-8 lg:py-20">
-          <p className="kicker">Ecosystem Feedback</p>
-          <h2 className="section-title">What You Can Expect After Offloading the Busywork</h2>
-          <div className="mt-8 grid gap-6 lg:grid-cols-2">
-            {quotes.map((quote) => (
-              <blockquote className="quote-card" key={quote.author}>
-                “{quote.body}”
-                <footer className="mt-5 border-t border-[var(--line)] pt-4">
-                  <p className="kicker">{quote.author}</p>
-                </footer>
-              </blockquote>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section id="faq">
-        <div className="page-shell px-4 py-14 sm:px-6 lg:px-8 lg:py-20">
-          <p className="kicker">FAQ</p>
-          <h2 className="section-title">Answers to Common Questions</h2>
+          <p className="kicker">Built For</p>
+          <h2 className="section-title">Teams with high-stakes investigation workflows</h2>
           <p className="section-copy">
-            Everything here is built around one goal: help you remove investigation busywork while keeping full control of decisions.
+            Aubox supports operational teams that need fast outputs, clear evidence paths, and controlled decision quality.
           </p>
 
           <div className="mt-10 grid gap-4 md:grid-cols-2">
-            {faqs.map((item, index) => (
-              <article
-                key={item.question}
-                className="border border-[var(--line-strong)] bg-[var(--panel)] p-6"
-                style={{
-                  borderTopWidth: '4px',
-                  borderTopColor: index % 2 === 0 ? 'var(--accent-strong)' : 'var(--ink)',
-                }}
-              >
-                <h3 className="text-lg font-semibold leading-snug">{item.question}</h3>
-                <p className="muted mt-3 text-sm leading-7">{item.answer}</p>
+            {builtForProfiles.map((profile) => (
+              <article key={profile.title} className="frame-card p-6">
+                <h3 className="text-lg font-semibold leading-snug">{profile.title}</h3>
+                <p className="muted mt-3 text-sm leading-7">{profile.body}</p>
               </article>
             ))}
           </div>
         </div>
       </section>
 
-      <section>
+      <section id="why-care">
         <div className="page-shell px-4 py-14 sm:px-6 lg:px-8 lg:py-20">
-          <p className="kicker">Why Choose Aubox</p>
-          <h2 className="section-title">Why Choose Aubox</h2>
+          <p className="kicker">Why Should You Care</p>
+          <h2 className="section-title">Clear operational impact for your investigation team</h2>
           <p className="section-copy">
-            Built to help you move faster without sacrificing clarity, control, or evidentiary quality.
+            Aubox is built to improve speed, consistency, and evidence quality where investigation teams need it most.
           </p>
 
           <div className="mt-10 grid gap-4 md:grid-cols-3">
-            {operationalPillars.map((item) => (
+            {whyCare.map((item) => (
               <article key={item.title} className="frame-card p-6">
                 <h3 className="text-lg font-semibold leading-snug">{item.title}</h3>
                 <p className="muted mt-3 text-sm leading-7">{item.body}</p>
@@ -296,14 +334,45 @@ export default function Home() {
         </div>
       </section>
 
+      <section id="faq">
+        <div className="page-shell px-4 py-14 sm:px-6 lg:px-8 lg:py-20">
+          <p className="kicker">Detailed FAQ</p>
+          <h2 className="section-title">Answers for teams evaluating Aubox</h2>
+          <p className="section-copy">
+            Practical answers to common operational, workflow, and pricing questions from investigation teams.
+          </p>
+
+          <div className="mt-10 flex flex-col gap-3">
+            {faqs.map((item, index) => (
+              <details
+                key={item.question}
+                className="faq-item border border-[var(--line-strong)] bg-[var(--panel)]"
+                style={{
+                  borderTopWidth: '4px',
+                  borderTopColor: index % 2 === 0 ? 'var(--accent-strong)' : 'var(--ink)',
+                }}
+              >
+                <summary className="faq-summary flex cursor-pointer list-none items-start justify-between gap-3 px-5 py-4 text-left">
+                  <span className="text-lg font-semibold leading-snug">{item.question}</span>
+                  <span aria-hidden="true" className="faq-indicator mt-1 text-lg leading-none">+</span>
+                </summary>
+                <div className="px-5 pb-5">
+                  <p className="muted text-sm leading-7">{item.answer}</p>
+                </div>
+              </details>
+            ))}
+          </div>
+        </div>
+      </section>
+
       <section>
         <div className="page-shell px-4 py-14 text-center sm:px-6 lg:px-8 lg:py-20">
           <p className="kicker">Get Started</p>
           <h2 className="mt-4 text-4xl font-semibold leading-tight sm:text-5xl">
-            Ready to give investigators their time back?
+            Ready to modernize your investigation operations?
           </h2>
           <p className="section-copy mx-auto">
-            Deploy Aubox to offload repetitive investigation work while you lead the decisions that matter.
+            Bring your team into Aubox to accelerate case throughput while keeping investigators in control of final decisions.
           </p>
           <div className="mt-8 flex flex-wrap justify-center gap-3">
             <a href={`${DASHBOARD_URL}/request-access`} className="button-primary">
@@ -337,11 +406,12 @@ export default function Home() {
             <p className="mt-6 text-xs text-[var(--paper)]/65">© 2026 Aubox. All rights reserved.</p>
           </div>
 
-          <div className="grid border-t border-white/35 md:grid-cols-3">
+          <div className="grid border-t border-white/35 md:grid-cols-4">
             <div className="border-b border-white/30 px-5 py-7 md:border-b-0 md:border-r md:border-white/30">
               <p className="font-mono text-xs uppercase tracking-[0.14em] text-[var(--paper)]/75">Product</p>
               <div className="mt-5 flex flex-col gap-3 text-sm">
                 <a href={DASHBOARD_URL} className="w-max border-b border-dashed border-white/50 pb-0.5 hover:text-white">Dashboard ↗</a>
+                <a href="/pricing" className="w-max border-b border-dashed border-white/50 pb-0.5 hover:text-white">Pricing ↗</a>
               </div>
             </div>
 
@@ -363,18 +433,28 @@ export default function Home() {
 
             <div className="px-5 py-7">
               <p className="font-mono text-xs uppercase tracking-[0.14em] text-[var(--paper)]/75">Connect</p>
-              <div className="mt-5 flex flex-col gap-3 text-sm">
+              <div className="mt-5 flex items-center gap-3 text-sm">
                 <a
                   href="https://x.com/auboxapp"
                   target="_blank"
                   rel="noreferrer"
-                  className="inline-flex w-max items-center gap-2 border-b border-dashed border-white/50 pb-0.5 hover:text-white"
+                  aria-label="Aubox on X"
+                  className="inline-flex h-9 w-9 items-center justify-center border border-white/45 text-[var(--paper)]/90 transition hover:border-white hover:text-white"
                 >
-                  <span aria-hidden="true" className="inline-flex h-4 w-4 items-center justify-center text-[0.7rem] font-bold leading-none">
-                    X
-                  </span>
-                  <span>@auboxapp</span>
-                  <span aria-hidden="true">↗</span>
+                  <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4 fill-current">
+                    <path d="M18.244 2H21.5l-7.12 8.135L22.75 22h-6.555l-5.132-6.693L5.21 22H1.95l7.618-8.707L1.5 2h6.722l4.636 6.121L18.244 2Zm-1.145 18.02h1.803L7.245 3.874H5.308L17.1 20.02Z" />
+                  </svg>
+                </a>
+                <a
+                  href="https://github.com/auboxapp"
+                  target="_blank"
+                  rel="noreferrer"
+                  aria-label="Aubox on GitHub"
+                  className="inline-flex h-9 w-9 items-center justify-center border border-white/45 text-[var(--paper)]/90 transition hover:border-white hover:text-white"
+                >
+                  <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4 fill-current">
+                    <path d="M12 2C6.475 2 2 6.589 2 12.25c0 4.528 2.865 8.37 6.839 9.727.5.095.683-.22.683-.49 0-.24-.009-.875-.014-1.717-2.782.617-3.37-1.376-3.37-1.376-.455-1.183-1.11-1.498-1.11-1.498-.908-.636.069-.623.069-.623 1.004.073 1.532 1.054 1.532 1.054.892 1.57 2.341 1.116 2.91.853.091-.664.35-1.116.636-1.372-2.22-.259-4.555-1.14-4.555-5.071 0-1.12.389-2.036 1.026-2.754-.103-.26-.445-1.306.098-2.722 0 0 .837-.275 2.743 1.051A9.335 9.335 0 0 1 12 6.839c.852.004 1.712.118 2.515.347 1.905-1.326 2.741-1.051 2.741-1.051.544 1.416.202 2.462.1 2.722.639.718 1.025 1.634 1.025 2.754 0 3.941-2.338 4.809-4.566 5.063.359.317.679.943.679 1.9 0 1.372-.012 2.478-.012 2.815 0 .272.18.589.688.489C19.14 20.616 22 16.775 22 12.25 22 6.589 17.523 2 12 2Z" />
+                  </svg>
                 </a>
               </div>
             </div>

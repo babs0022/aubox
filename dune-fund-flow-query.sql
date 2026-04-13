@@ -1,151 +1,88 @@
--- Fund Flow Analysis Query for Forensic Tracing
--- Traces all token movements from a starting wallet across all chains
--- Identifies bridges, exchanges, DEX protocols, and staking contracts
--- Time window: customizable via parameter (default 90 days from start_timestamp)
+-- DUNE QUERY: FUND FLOW TRACE
+-- Expected query parameters:
+--   {{wallet_address}}  (string, required, 0x...)
+--   {{start_timestamp}} (number, required, unix seconds)
+--   {{tx_hash}}         (string, optional, 0x... or empty)
+--
+-- Output columns required by backend:
+--   blockchain, from_address, to_address, protocol_name, protocol_type,
+--   amount, amount_usd, tx_count, outgoing_txs, incoming_txs,
+--   first_activity, last_activity, tx_hashes, hop_level, flow_direction
 
-WITH
-  starting_wallet AS (
-    SELECT TRY(FROM_HEX(REGEXP_REPLACE(LOWER('{{wallet_address}}'), '^0x', ''))) AS address
-  ),
-  
-  -- Get all outgoing transfers from the hacked wallet (first-level)
-  direct_transfers AS (
-    SELECT
-      blockchain,
-      'outgoing' AS flow_direction,
-      1 AS hop_level,
-      "from" AS from_address,
-      "to" AS to_address,
-      contract_address,
-      amount,
-      amount_usd,
-      tx_hash,
-      block_time,
-      CAST(NULL AS varchar) AS protocol_type,
-      CAST(NULL AS varchar) AS protocol_name
-    FROM tokens.transfers
-    WHERE
-      "from" = (SELECT address FROM starting_wallet)
-      AND (SELECT address FROM starting_wallet) IS NOT NULL
-      AND TO_UNIXTIME(block_time) >= CAST('{{start_timestamp}}' AS bigint)
-      AND TO_UNIXTIME(block_time) <= CAST('{{start_timestamp}}' AS bigint) + 7776000
-      AND (
-        '{{tx_hash}}' = ''
-        OR tx_hash = TRY(FROM_HEX(REGEXP_REPLACE(LOWER('{{tx_hash}}'), '^0x', '')))
-      )
-  ),
-  
-  -- Enrich direct transfers with protocol classifications
-  direct_with_labels AS (
-    SELECT
-      dt.blockchain,
-      dt.flow_direction,
-      dt.hop_level,
-      dt.from_address,
-      dt.to_address,
-      dt.contract_address,
-      dt.amount,
-      dt.amount_usd,
-      dt.tx_hash,
-      dt.block_time,
-      CASE
-        WHEN l1.category = 'bridge' THEN 'bridge'
-        WHEN l1.category = 'exchange' THEN 'exchange'
-        WHEN l1.category = 'dex' THEN 'dex'
-        WHEN l1.category = 'staking' THEN 'staking'
-        WHEN l1.category = 'contract' THEN 'contract'
-        ELSE NULL
-      END AS protocol_type,
-      COALESCE(l1.name, CONCAT('0x', LOWER(TO_HEX(dt.to_address)))) AS protocol_name,
-      l1.category,
-      l1.address AS labeled_address
-    FROM direct_transfers dt
-    LEFT JOIN labels.addresses l1 ON 
-      dt.to_address = l1.address
-      AND dt.blockchain = l1.blockchain
-    WHERE dt.to_address IS NOT NULL
-  ),
+with params as (
+	select
+		lower(trim('{{wallet_address}}')) as wallet_address,
+		from_unixtime(cast({{start_timestamp}} as bigint)) as start_time,
+		lower(trim(coalesce('{{tx_hash}}', ''))) as tx_hash
+),
 
-  -- Get second-level transfers (from recipients of direct transfers)
-  -- Used to track where bridges/exchanges send funds
-  secondary_transfers AS (
-    SELECT
-      dt.blockchain,
-      'incoming' AS flow_direction,
-      2 AS hop_level,
-      dt."from" AS from_address,
-      dt."to" AS to_address,
-      dt.contract_address,
-      dt.amount,
-      dt.amount_usd,
-      dt.tx_hash,
-      dt.block_time,
-      CASE
-        WHEN l2.category = 'bridge' THEN 'bridge'
-        WHEN l2.category = 'exchange' THEN 'exchange'
-        WHEN l2.category = 'dex' THEN 'dex'
-        WHEN l2.category = 'staking' THEN 'staking'
-        WHEN l2.category = 'contract' THEN 'contract'
-        ELSE NULL
-      END AS protocol_type,
-      COALESCE(l2.name, CONCAT('0x', LOWER(TO_HEX(dt."to")))) AS protocol_name,
-      l2.category,
-      l2.address AS labeled_address
-    FROM tokens.transfers dt
-    INNER JOIN direct_with_labels dwl ON
-      dt."from" = dwl.to_address
-      AND dt.blockchain = dwl.blockchain
-    LEFT JOIN labels.addresses l2 ON
-      dt."to" = l2.address
-      AND dt.blockchain = l2.blockchain
-    WHERE
-      TO_UNIXTIME(dt.block_time) >= CAST('{{start_timestamp}}' AS bigint)
-      AND TO_UNIXTIME(dt.block_time) <= CAST('{{start_timestamp}}' AS bigint) + 7776000
-  ),
+seed_transfers as (
+	select
+		t.blockchain,
+		concat('0x', lower(to_hex(t."from"))) as from_address,
+		concat('0x', lower(to_hex(t."to"))) as to_address,
+		t.amount as amount,
+		coalesce(t.amount_usd, 0) as amount_usd,
+		t.tx_hash,
+		t.block_time,
+		case
+			when concat('0x', lower(to_hex(t."from"))) = p.wallet_address then 'outgoing'
+			when concat('0x', lower(to_hex(t."to"))) = p.wallet_address then 'incoming'
+			else 'outgoing'
+		end as flow_direction
+	from tokens.transfers t
+	cross join params p
+	where t.block_time >= p.start_time
+		and (
+			concat('0x', lower(to_hex(t."from"))) = p.wallet_address
+			or concat('0x', lower(to_hex(t."to"))) = p.wallet_address
+		)
+		and (
+			p.tx_hash = ''
+			or concat('0x', lower(to_hex(t.tx_hash))) = p.tx_hash
+		)
+		and t.amount_usd is not null
+),
 
-  -- Combine all transfers
-  all_transfers AS (
-    SELECT * FROM direct_with_labels
-    UNION ALL
-    SELECT * FROM secondary_transfers
-  ),
+address_labels as (
+	select
+		lower(blockchain) as blockchain,
+		concat('0x', lower(to_hex(address))) as address,
+		max_by(name, updated_at) as label_name,
+		max_by(category, updated_at) as category_name
+	from labels.addresses
+	group by 1, 2
+)
 
-  -- Aggregate fund flows grouped by destination
-  fund_flow_aggregates AS (
-    SELECT
-      blockchain,
-      to_address,
-      protocol_name,
-      protocol_type,
-      category,
-      COUNT(DISTINCT tx_hash) AS tx_count,
-      COUNT(DISTINCT CASE WHEN flow_direction = 'outgoing' THEN tx_hash END) AS outgoing_txs,
-      COUNT(DISTINCT CASE WHEN flow_direction = 'incoming' THEN tx_hash END) AS incoming_txs,
-      SUM(amount_usd) AS total_usd,
-      AVG(amount_usd) AS avg_amount_usd,
-      MIN(block_time) AS first_activity,
-      MAX(block_time) AS last_activity,
-      ARRAY_JOIN(ARRAY_DISTINCT(ARRAY_AGG(CAST(tx_hash AS varchar))), ',') AS tx_hashes
-    FROM all_transfers
-    WHERE to_address IS NOT NULL AND amount_usd > 0
-    GROUP BY blockchain, to_address, protocol_name, protocol_type, category
-  )
-
--- Final result set
-SELECT
-  blockchain,
-  CONCAT('0x', LOWER(TO_HEX(to_address))) AS entity_address,
-  protocol_name,
-  protocol_type,
-  tx_count,
-  outgoing_txs,
-  incoming_txs,
-  total_usd,
-  avg_amount_usd,
-  first_activity,
-  last_activity,
-  tx_hashes,
-  'transfer' AS result_type
-FROM fund_flow_aggregates
-WHERE total_usd > 0
-ORDER BY total_usd DESC, first_activity ASC
+select
+	st.blockchain,
+	st.from_address,
+	st.to_address,
+	coalesce(lto.label_name, lfrom.label_name, 'Unknown') as protocol_name,
+	coalesce(lower(lto.category_name), lower(lfrom.category_name), 'unknown') as protocol_type,
+	sum(st.amount) as amount,
+	sum(st.amount_usd) as amount_usd,
+	count(*) as tx_count,
+	sum(case when st.flow_direction = 'outgoing' then 1 else 0 end) as outgoing_txs,
+	sum(case when st.flow_direction = 'incoming' then 1 else 0 end) as incoming_txs,
+	cast(min(st.block_time) as varchar) as first_activity,
+	cast(max(st.block_time) as varchar) as last_activity,
+	array_join(array_agg(distinct concat('0x', lower(to_hex(st.tx_hash)))), ',') as tx_hashes,
+	1 as hop_level,
+	st.flow_direction as flow_direction
+from seed_transfers st
+left join address_labels lto
+	on lower(st.blockchain) = lto.blockchain
+ and st.to_address = lto.address
+left join address_labels lfrom
+	on lower(st.blockchain) = lfrom.blockchain
+ and st.from_address = lfrom.address
+group by
+	st.blockchain,
+	st.from_address,
+	st.to_address,
+	coalesce(lto.label_name, lfrom.label_name, 'Unknown'),
+	coalesce(lower(lto.category_name), lower(lfrom.category_name), 'unknown'),
+	st.flow_direction
+order by amount_usd desc
+limit 5000;
